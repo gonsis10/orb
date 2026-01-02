@@ -39,11 +39,12 @@ func init() {
 }
 
 var exposeCmd = &cobra.Command{
-	Use:     "expose <subdomain> <port>",
-	Short:   "Expose a local port at subdomain." + Domain,
-	Example: "  orb expose api 8080",
-	Args:    cobra.ExactArgs(2),
-	RunE:    runExpose,
+	Use:                   "expose <subdomain> <port>",
+	Short:                 "Expose a local port at subdomain." + Domain,
+	Example:               "  orb expose api 8080",
+	Args:                  cobra.ExactArgs(2),
+	DisableFlagsInUseLine: true,
+	RunE:                  runExpose,
 }
 
 func runExpose(cmd *cobra.Command, args []string) error {
@@ -101,11 +102,12 @@ func runExpose(cmd *cobra.Command, args []string) error {
 }
 
 var unexposeCmd = &cobra.Command{
-	Use:     "unexpose <subdomain>",
-	Short:   "Remove a subdomain from the tunnel",
-	Example: "  orb unexpose api",
-	Args:    cobra.ExactArgs(1),
-	RunE:    runUnexpose,
+	Use:                   "unexpose <subdomain>",
+	Short:                 "Remove a subdomain from the tunnel",
+	Example:               "  orb unexpose api",
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
+	RunE:                  runUnexpose,
 }
 
 func runUnexpose(cmd *cobra.Command, args []string) error {
@@ -147,10 +149,11 @@ func runUnexpose(cmd *cobra.Command, args []string) error {
 }
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all exposed services",
-	Args:  cobra.NoArgs,
-	RunE:  runList,
+	Use:                   "list",
+	Short:                 "List all exposed services",
+	Args:                  cobra.NoArgs,
+	DisableFlagsInUseLine: true,
+	RunE:                  runList,
 }
 
 func runList(cmd *cobra.Command, args []string) error {
