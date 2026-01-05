@@ -91,10 +91,6 @@ func (s *Service) Unexpose(subdomain string) error {
 		return err
 	}
 
-	if err := s.cloudflare.Reload(); err != nil {
-		return fmt.Errorf("config updated but failed to reload cloudflared: %w", err)
-	}
-
 	fmt.Printf("✔ Removed %s (was → %s)\n", host, oldService)
 	return nil
 }

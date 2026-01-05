@@ -16,13 +16,13 @@ const (
 
 type IngressRule struct {
 	Hostname string `yaml:"hostname,omitempty"`
-	Service  string `yaml:"service"`
+	Service string `yaml:"service"`
 }
 
 type Config struct {
-	Tunnel          string        `yaml:"tunnel"`
-	CredentialsFile string        `yaml:"credentials-file"`
-	Ingress         []IngressRule `yaml:"ingress"`
+	Tunnel string `yaml:"tunnel"`
+	CredentialsFile string `yaml:"credentials-file"`
+	Ingress []IngressRule `yaml:"ingress"`
 }
 
 type ConfigManager struct {

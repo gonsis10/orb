@@ -13,12 +13,7 @@ var rootCmd = &cobra.Command{
 
 Commands are grouped by function:
   tunnel    Manage Cloudflare Tunnel ingress rules
-  deploy    Deploy services (coming soon)
-
-Examples:
-  orb tunnel expose api 8080    # Expose localhost:8080 at api.simoonsong.com
-  orb tunnel unexpose api       # Remove the api subdomain
-  orb tunnel list               # Show all exposed services`,
+  deploy    Deploy dockerized services`,
 }
 
 func Execute() {

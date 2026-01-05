@@ -36,7 +36,7 @@ var exposeCmd = &cobra.Command{
 
 var unexposeCmd = &cobra.Command{
 	Use:                   "unexpose <subdomain>",
-	Short:                 "Remove a subdomain from the tunnel",
+	Short:                 "Remove an exposed subdomain.",
 	Example:               "  orb tunnel unexpose api",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
@@ -47,7 +47,7 @@ var unexposeCmd = &cobra.Command{
 
 var listCmd = &cobra.Command{
 	Use:                   "list",
-	Short:                 "List all exposed services",
+	Short:                 "List all exposed subdomains",
 	Args:                  cobra.NoArgs,
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
