@@ -9,9 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	Domain     = "simoonsong.com"
-	ConfigPath = "/etc/cloudflared/config.yml"
+var (
+	Domain     = os.Getenv("DOMAIN")
+	ConfigPath = os.Getenv("CONFIG_PATH")
 )
 
 type IngressRule struct {
