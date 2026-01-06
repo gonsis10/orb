@@ -6,18 +6,26 @@ import (
 	"orb/internal/cloudflared"
 )
 
+// Service struct for tunnel operations
 type Service struct {
 	config *ConfigManager
 	cloudflare *cloudflared.Client
 }
 
+// creates new tunnel service
 func NewService() *Service {
+	client, err := cloudflared.New()
+	if err != nil {
+		panic(fmt.Sprintf("failed to create cloudflare client: %v", err))
+	}
+
 	return &Service{
 		config:     NewConfigManager(),
-		cloudflare: cloudflared.New(),
+		cloudflare: client,
 	}
 }
 
+// expose local subdomain and port through cloudflare tunnel
 func (s *Service) Expose(subdomain, port string) error {
 	// validation of arguments and if server is running
 	if err := ValidateSubdomain(subdomain); err != nil {
@@ -69,12 +77,18 @@ func (s *Service) Expose(subdomain, port string) error {
 	if err := s.cloudflare.CreateDNSRoute(cfg.Tunnel, host); err != nil {
 		return fmt.Errorf("config updated but failed to create DNS route: %w", err)
 	}
+
+	// restart cloudflared service
+	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
+		return fmt.Errorf("failed to restart cloudflared service: %w", err)
+	}
 	
 	fmt.Printf("✔ Exposed %s → %s\n", host, svc)
 	fmt.Printf("  Visit: https://%s\n", host)
 	return nil
 }
 
+// unexpose local subdomain from cloudflare tunnel
 func (s *Service) Unexpose(subdomain string) error {
 	// validate subdomain
 	if err := ValidateSubdomain(subdomain); err != nil {
@@ -106,12 +120,22 @@ func (s *Service) Unexpose(subdomain string) error {
 		return err
 	}
 
-	// TODO: add remove func for domain from cloudflare dashboard
+	// remove domain from cloudflare dashboard
+	fmt.Printf("Removing DNS route for %s...\n", host)
+	if err := s.cloudflare.RemoveDNSRoute(cfg.Tunnel, host); err != nil {
+		return fmt.Errorf("config updated but failed to remove DNS route: %w", err)
+	}
+
+	// restart cloudflared service
+	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
+		return fmt.Errorf("failed to restart cloudflared service: %w", err)
+	}
 
 	fmt.Printf("✔ Removed %s (was → %s)\n", host, oldService)
 	return nil
 }
 
+// list all exposed subdomains and their services
 func (s *Service) List() error {
 	// load cloudflare config
 	cfg, err := s.config.Load()

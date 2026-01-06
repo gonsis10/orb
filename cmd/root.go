@@ -13,7 +13,7 @@ var rootCmd = &cobra.Command{
 
 Commands are grouped by function:
   tunnel    Manage Cloudflare Tunnel ingress rules
-  deploy    Deploy dockerized services`,
+  deploy    Deploy dockerized services (coming soon)`,
 }
 
 func Execute() {
