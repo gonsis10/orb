@@ -125,12 +125,6 @@ orb/
 
 ## Development
 
-### Run Tests
-
-```bash
-go test ./...
-```
-
 ### Build
 
 ```bash
