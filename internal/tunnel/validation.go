@@ -8,13 +8,14 @@ import (
 	"time"
 )
 
-// regex for subdomains and ports
 var (
+	// subdomainRe validates subdomain format
 	subdomainRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
-	portRe      = regexp.MustCompile(`^\d{1,5}$`)
+	// portRe validates port number format
+	portRe = regexp.MustCompile(`^\d{1,5}$`)
 )
 
-// validation function for subdomain
+// ValidateSubdomain checks if a subdomain string is valid
 func ValidateSubdomain(s string) error {
 	if !subdomainRe.MatchString(s) {
 		return errors.New("invalid subdomain: use lowercase letters, digits, and hyphens (must start/end with alphanumeric)")
@@ -22,7 +23,7 @@ func ValidateSubdomain(s string) error {
 	return nil
 }
 
-// validation function for port
+// ValidatePort checks if a port string is valid
 func ValidatePort(p string) error {
 	if !portRe.MatchString(p) {
 		return errors.New("invalid port: must be a number between 1-65535")
@@ -30,7 +31,7 @@ func ValidatePort(p string) error {
 	return nil
 }
 
-// check if service is listening on the given port
+// EnsurePortListening checks if a service is listening on the given port
 func EnsurePortListening(port string) error {
 	addr := "127.0.0.1:" + port
 	conn, err := net.DialTimeout("tcp", addr, 800*time.Millisecond)

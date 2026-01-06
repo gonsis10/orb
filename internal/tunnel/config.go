@@ -9,36 +9,60 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// vars from environment
-var (
-	Domain = os.Getenv("DOMAIN")
-	ConfigPath = os.Getenv("CONFIG_PATH")
-)
+// Environment holds validated environment configuration
+type Environment struct {
+	Domain     string
+	ConfigPath string
+}
 
-// ingress rule plus yaml tags
+// LoadEnvironment loads and validates required environment variables
+func LoadEnvironment() (*Environment, error) {
+	domain := os.Getenv("DOMAIN")
+	if domain == "" {
+		return nil, fmt.Errorf("DOMAIN environment variable is required")
+	}
+
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		return nil, fmt.Errorf("CONFIG_PATH environment variable is required")
+	}
+
+	return &Environment{
+		Domain:     domain,
+		ConfigPath: configPath,
+	}, nil
+}
+
+// Domain returns the configured domain (for backward compatibility)
+var Domain = os.Getenv("DOMAIN")
+
+// ConfigPath returns the configured config path (for backward compatibility)
+var ConfigPath = os.Getenv("CONFIG_PATH")
+
+// IngressRule represents a single ingress rule in the cloudflared configuration
 type IngressRule struct {
 	Hostname string `yaml:"hostname,omitempty"`
-	Service string `yaml:"service"`
+	Service  string `yaml:"service"`
 }
 
-// cloudflared config plus yaml tags
+// Config represents the cloudflared YAML configuration structure
 type Config struct {
-	Tunnel string `yaml:"tunnel"`
-	CredentialsFile string `yaml:"credentials-file"`
-	Ingress []IngressRule `yaml:"ingress"`
+	Tunnel          string        `yaml:"tunnel"`
+	CredentialsFile string        `yaml:"credentials-file"`
+	Ingress         []IngressRule `yaml:"ingress"`
 }
 
-// manager for loading and saving cloudflared config
+// ConfigManager handles loading and saving cloudflared configuration files
 type ConfigManager struct {
 	path string
 }
 
-// creates new config manager
+// NewConfigManager creates a new configuration manager
 func NewConfigManager() *ConfigManager {
 	return &ConfigManager{path: ConfigPath}
 }
 
-// loads cloudflared config from file
+// Load reads and parses the cloudflared config from file
 func (m *ConfigManager) Load() (*Config, error) {
 	data, err := os.ReadFile(m.path)
 	if err != nil {
@@ -58,7 +82,7 @@ func (m *ConfigManager) Load() (*Config, error) {
 	return &config, nil
 }
 
-// saves cloudflared config to file
+// Save writes the cloudflared config to file atomically
 func (m *ConfigManager) Save(config *Config) error {
 	out, err := yaml.Marshal(config)
 	if err != nil {
@@ -83,7 +107,7 @@ func (m *ConfigManager) Save(config *Config) error {
 	return nil
 }
 
-// modifies the port for a given subdomain in the config
+// ModifySubdomainPort updates the port for a given subdomain in the config
 func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port string) error {
 	hostname := HostnameFor(subdomain)
 	service := ServiceFor(port)
@@ -97,7 +121,7 @@ func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port stri
 	return nil
 }
 
-// ensures the last ingress rule is a catch-all
+// EnsureCatchAllLast validates that the last ingress rule is a catch-all
 func (m *ConfigManager) EnsureCatchAllLast(config *Config) error {
 	if len(config.Ingress) == 0 {
 		return errors.New("config has no ingress rules - add a catch-all rule first")
@@ -111,7 +135,7 @@ func (m *ConfigManager) EnsureCatchAllLast(config *Config) error {
 	return nil
 }
 
-// finds the index of an ingress rule by hostname
+// FindIngressIndex finds the index of an ingress rule by hostname
 func (m *ConfigManager) FindIngressIndex(config *Config, hostname string) int {
 	for i, rule := range config.Ingress {
 		if rule.Hostname == hostname {
@@ -121,12 +145,12 @@ func (m *ConfigManager) FindIngressIndex(config *Config, hostname string) int {
 	return -1
 }
 
-// formats hostname for subdomain
+// HostnameFor formats a full hostname from a subdomain
 func HostnameFor(subdomain string) string {
 	return fmt.Sprintf("%s.%s", subdomain, Domain)
 }
 
-// formats service URL for port
+// ServiceFor formats a service URL from a port number
 func ServiceFor(port string) string {
 	return fmt.Sprintf("http://localhost:%s", port)
 }

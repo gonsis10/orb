@@ -1,31 +1,43 @@
+// Package tunnel provides management for Cloudflare Tunnel ingress rules.
+// It handles exposing, unexposing, updating, and listing local services
+// through Cloudflare Tunnel.
 package tunnel
 
 import (
 	"fmt"
 
-	"orb/internal/cloudflared"
+	"orb/internal/dns"
 )
 
 // Service struct for tunnel operations
 type Service struct {
-	config *ConfigManager
-	cloudflare *cloudflared.Client
+	config     *ConfigManager
+	cloudflare *dns.Client
+	env        *Environment
 }
 
-// creates new tunnel service
-func NewService() *Service {
-	client, err := cloudflared.New()
+// NewService creates a new tunnel service
+func NewService() (*Service, error) {
+	// Validate environment variables first
+	env, err := LoadEnvironment()
 	if err != nil {
-		panic(fmt.Sprintf("failed to create cloudflare client: %v", err))
+		return nil, err
+	}
+
+	// Create Cloudflare client
+	client, err := dns.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
 	}
 
 	return &Service{
 		config:     NewConfigManager(),
 		cloudflare: client,
-	}
+		env:        env,
+	}, nil
 }
 
-// expose local subdomain and port through cloudflare tunnel
+// Expose makes a local port accessible through a Cloudflare Tunnel subdomain
 func (s *Service) Expose(subdomain, port string) error {
 	// validation of arguments and if server is running
 	if err := ValidateSubdomain(subdomain); err != nil {
@@ -82,13 +94,13 @@ func (s *Service) Expose(subdomain, port string) error {
 	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
 		return fmt.Errorf("failed to restart cloudflared service: %w", err)
 	}
-	
+
 	fmt.Printf("✔ Exposed %s → %s\n", host, svc)
 	fmt.Printf("  Visit: https://%s\n", host)
 	return nil
 }
 
-// unexpose local subdomain from cloudflare tunnel
+// Unexpose removes a subdomain from the Cloudflare Tunnel
 func (s *Service) Unexpose(subdomain string) error {
 	// validate subdomain
 	if err := ValidateSubdomain(subdomain); err != nil {
@@ -135,7 +147,7 @@ func (s *Service) Unexpose(subdomain string) error {
 	return nil
 }
 
-// update port for subdomain
+// Update changes the port mapping for an existing subdomain
 func (s *Service) Update(subdomain, port string) error {
 	// validate arguments
 	if err := ValidateSubdomain(subdomain); err != nil {
@@ -146,7 +158,7 @@ func (s *Service) Update(subdomain, port string) error {
 	}
 
 	// ensure port is listening
-	if err := EnsurePortListening(port); err != nil {	
+	if err := EnsurePortListening(port); err != nil {
 		return err
 	}
 
@@ -155,7 +167,7 @@ func (s *Service) Update(subdomain, port string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// modify subdomain port in config
 	if err := s.config.ModifySubdomainPort(cfg, subdomain, port); err != nil {
 		return err
@@ -169,7 +181,7 @@ func (s *Service) Update(subdomain, port string) error {
 	return nil
 }
 
-// list all exposed subdomains and their services
+// List displays all exposed subdomains and their port mappings
 func (s *Service) List() error {
 	// load cloudflare config
 	cfg, err := s.config.Load()

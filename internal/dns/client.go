@@ -1,4 +1,6 @@
-package cloudflared
+// Package dns provides a client for managing Cloudflare DNS records
+// and cloudflared service operations.
+package dns
 
 import (
 	"context"
@@ -9,15 +11,15 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 )
 
-// client wrapper for cloudflare API
+// Client wraps the Cloudflare API for DNS management
 type Client struct {
-    api *cloudflare.API
-    zoneID string 
+	api    *cloudflare.API
+	zoneID string
 }
 
-// creates new cloudflare client
+// New creates a new Cloudflare DNS client
 func New() (*Client, error) {
-    api, err := cloudflare.NewWithAPIToken(os.Getenv("CLOUDFLARE_API_TOKEN"))
+	api, err := cloudflare.NewWithAPIToken(os.Getenv("CLOUDFLARE_API_TOKEN"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
 	}
@@ -28,7 +30,7 @@ func New() (*Client, error) {
 	}, nil
 }
 
-// creates CNAME DNS record for the tunnel
+// CreateDNSRoute creates a CNAME DNS record for the tunnel
 func (c *Client) CreateDNSRoute(tunnelID, hostname string) error {
 	ctx := context.Background()
 
@@ -50,7 +52,7 @@ func (c *Client) CreateDNSRoute(tunnelID, hostname string) error {
 	return nil
 }
 
-// removes CNAME DNS record for the tunnel
+// RemoveDNSRoute removes CNAME DNS record for the tunnel
 func (c *Client) RemoveDNSRoute(tunnelID, hostname string) error {
 	ctx := context.Background()
 
@@ -76,7 +78,7 @@ func (c *Client) RemoveDNSRoute(tunnelID, hostname string) error {
 	return nil
 }
 
-// restarts cloudflared service to apply DNS changes
+// RestartCloudflaredService restarts the cloudflared service to apply DNS changes
 func (c *Client) RestartCloudflaredService(tunnelID, hostname string) error {
 	cmd := exec.Command("sudo", "systemctl", "restart", "cloudflared")
 	output, err := cmd.CombinedOutput()
