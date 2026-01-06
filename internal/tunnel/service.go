@@ -46,9 +46,6 @@ func (s *Service) Expose(subdomain, port string) error {
 	if err := ValidatePort(port); err != nil {
 		return err
 	}
-	if err := EnsurePortListening(port); err != nil {
-		return err
-	}
 
 	// get hostname and service
 	host := HostnameFor(subdomain)
@@ -154,11 +151,6 @@ func (s *Service) Update(subdomain, port string) error {
 		return err
 	}
 	if err := ValidatePort(port); err != nil {
-		return err
-	}
-
-	// ensure port is listening
-	if err := EnsurePortListening(port); err != nil {
 		return err
 	}
 

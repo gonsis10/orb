@@ -2,10 +2,7 @@ package tunnel
 
 import (
 	"errors"
-	"fmt"
-	"net"
 	"regexp"
-	"time"
 )
 
 var (
@@ -31,13 +28,14 @@ func ValidatePort(p string) error {
 	return nil
 }
 
+// CURRENTLY DISABLED FOR BETTER DESIGN PRACTICES
 // EnsurePortListening checks if a service is listening on the given port
-func EnsurePortListening(port string) error {
-	addr := "127.0.0.1:" + port
-	conn, err := net.DialTimeout("tcp", addr, 800*time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("nothing listening on %s - start your service first", addr)
-	}
-	conn.Close()
-	return nil
-}
+// func EnsurePortListening(port string) error {
+// 	addr := "127.0.0.1:" + port
+// 	conn, err := net.DialTimeout("tcp", addr, 800*time.Millisecond)
+// 	if err != nil {
+// 		return fmt.Errorf("nothing listening on %s - start your service first", addr)
+// 	}
+// 	conn.Close()
+// 	return nil
+// }
