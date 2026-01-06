@@ -83,6 +83,20 @@ func (m *ConfigManager) Save(config *Config) error {
 	return nil
 }
 
+// modifies the port for a given subdomain in the config
+func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port string) error {
+	hostname := HostnameFor(subdomain)
+	service := ServiceFor(port)
+
+	idx := m.FindIngressIndex(config, hostname)
+	if idx == -1 {
+		return fmt.Errorf("no ingress rule found for subdomain %q", subdomain)
+	}
+
+	config.Ingress[idx].Service = service
+	return nil
+}
+
 // ensures the last ingress rule is a catch-all
 func (m *ConfigManager) EnsureCatchAllLast(config *Config) error {
 	if len(config.Ingress) == 0 {

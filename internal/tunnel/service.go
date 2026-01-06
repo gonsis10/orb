@@ -135,6 +135,40 @@ func (s *Service) Unexpose(subdomain string) error {
 	return nil
 }
 
+// update port for subdomain
+func (s *Service) Update(subdomain, port string) error {
+	// validate arguments
+	if err := ValidateSubdomain(subdomain); err != nil {
+		return err
+	}
+	if err := ValidatePort(port); err != nil {
+		return err
+	}
+
+	// ensure port is listening
+	if err := EnsurePortListening(port); err != nil {	
+		return err
+	}
+
+	// load cloudflare config
+	cfg, err := s.config.Load()
+	if err != nil {
+		return err
+	}
+	
+	// modify subdomain port in config
+	if err := s.config.ModifySubdomainPort(cfg, subdomain, port); err != nil {
+		return err
+	}
+
+	// save to yaml
+	if err := s.config.Save(cfg); err != nil {
+		return err
+	}
+	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceFor(port))
+	return nil
+}
+
 // list all exposed subdomains and their services
 func (s *Service) List() error {
 	// load cloudflare config
