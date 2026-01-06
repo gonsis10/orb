@@ -22,7 +22,6 @@ func loadEnv() {
 	if err == nil {
 		configPath := filepath.Join(homeDir, ".config", "orb", ".env")
 		if err := godotenv.Load(configPath); err == nil {
-			fmt.Fprintf(os.Stderr, "Loaded config from %s\n", configPath)
 			loaded = true
 			return
 		}
