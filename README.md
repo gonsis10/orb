@@ -19,32 +19,69 @@ A CLI tool for managing Cloudflare Tunnel ingress rules. Easily expose and manag
 
 ## Installation
 
-### From Source
+All `orb` configuration lives in `~/.config/orb/` for easy management.
+
+### Method 1: Using `go install` (Recommended)
 
 ```bash
+# 1. Clone and install the binary
 git clone https://github.com/yourusername/orb.git
 cd orb
 go install
+
+# 2. Add Go bin to your PATH (if not already configured)
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+source ~/.bashrc
+
+# 3. Create config directory and environment file
+mkdir -p ~/.config/orb
+nano ~/.config/orb/.env
 ```
 
-### Build Locally
+Add your configuration to `~/.config/orb/.env`:
+```bash
+DOMAIN=yourdomain.com
+CONFIG_PATH=/path/to/cloudflared/config.yml
+CLOUDFLARE_API_TOKEN=your_api_token
+CLOUDFLARE_ZONE_ID=your_zone_id
+```
+
+**Verify installation:**
+```bash
+orb --help
+```
+
+### Method 2: Build and Install Manually
 
 ```bash
+# 1. Build and install binary
 go build -o orb
 sudo mv orb /usr/local/bin/
+
+# 2. Create config directory and environment file
+mkdir -p ~/.config/orb
+nano ~/.config/orb/.env
+```
+
+Add your configuration to `~/.config/orb/.env` (same as above).
+
+## Uninstallation
+
+```bash
+# Remove the binary
+rm $(which orb)
+
+# Remove all configuration
+rm -rf ~/.config/orb
 ```
 
 ## Configuration
 
-Create a `.env` file in your project directory or set these environment variables:
+`orb` loads configuration from `~/.config/orb/.env` (created during installation).
 
-```bash
-# Required
-DOMAIN=yourdomain.com                    # Your base domain
-CONFIG_PATH=/path/to/cloudflared/config.yml  # Path to cloudflared config file
-CLOUDFLARE_API_TOKEN=your_api_token      # Cloudflare API token
-CLOUDFLARE_ZONE_ID=your_zone_id          # Cloudflare zone ID
-```
+**Configuration Priority:**
+1. `~/.config/orb/.env`
+2. Environment variables already set in your shell
 
 ### Getting Your Cloudflare Credentials
 
@@ -106,6 +143,7 @@ Exposed services:
 
 ## Project Structure
 
+**Source code:**
 ```
 orb/
 ├── cmd/                      # CLI commands (Cobra)
@@ -119,8 +157,13 @@ orb/
 │       ├── service.go       # Business logic
 │       └── validation.go    # Input validation
 ├── main.go                  # Entry point
-├── go.mod
-└── .env                     # Environment variables (not committed)
+└── go.mod
+```
+
+**Runtime configuration:**
+```
+~/.config/orb/
+└── .env                     # Environment variables (API tokens, domain, etc.)
 ```
 
 ## Development
@@ -159,7 +202,17 @@ sudo orb tunnel expose api 8080
 
 ### "DOMAIN environment variable is required"
 
-Make sure your `.env` file exists and contains all required variables, or set them in your shell:
+Make sure your `.env` file exists at `~/.config/orb/.env` and contains all required variables:
+```bash
+# Check if config exists
+cat ~/.config/orb/.env
+
+# Or create it if missing
+mkdir -p ~/.config/orb
+nano ~/.config/orb/.env
+```
+
+Alternatively, set them in your shell:
 ```bash
 export DOMAIN=yourdomain.com
 export CONFIG_PATH=/etc/cloudflared/config.yml
