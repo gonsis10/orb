@@ -58,8 +58,8 @@ type ConfigManager struct {
 }
 
 // NewConfigManager creates a new configuration manager
-func NewConfigManager() *ConfigManager {
-	return &ConfigManager{path: ConfigPath}
+func NewConfigManager(configPath string) *ConfigManager {
+	return &ConfigManager{path: configPath}
 }
 
 // Load reads and parses the cloudflared config from file

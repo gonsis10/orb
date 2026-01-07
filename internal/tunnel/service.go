@@ -31,7 +31,7 @@ func NewService() (*Service, error) {
 	}
 
 	return &Service{
-		config:     NewConfigManager(),
+		config:     NewConfigManager(env.ConfigPath),
 		cloudflare: client,
 		env:        env,
 	}, nil
