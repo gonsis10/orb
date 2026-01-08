@@ -1,12 +1,12 @@
-// Package tunnel provides management for Cloudflare Tunnel ingress rules.
-// It handles exposing, unexposing, updating, and listing local services
-// through Cloudflare Tunnel.
 package tunnel
 
 import (
 	"fmt"
+	"os"
 
 	"orb/internal/dns"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 // Service struct for tunnel operations
@@ -275,13 +275,27 @@ func (s *Service) List() error {
 		return nil
 	}
 
-	// print list of exposed services
-	fmt.Println("Exposed services:")
+	// create table
+	table := tablewriter.NewWriter(os.Stdout)
+	table.Header("URL", "Target")
+
+	// add rows to table
 	for _, rule := range cfg.Ingress {
 		if rule.Hostname == "" {
 			continue
 		}
-		fmt.Printf("  https://%-30s → %s\n", rule.Hostname, rule.Service)
+		if err := table.Append(
+			fmt.Sprintf("https://%s", rule.Hostname),
+			rule.Service,
+		); err != nil {
+			return fmt.Errorf("failed to add table row: %w", err)
+		}
+	}
+
+	// render table
+	fmt.Println("\nExposed services:")
+	if err := table.Render(); err != nil {
+		return fmt.Errorf("failed to render table: %w", err)
 	}
 
 	return nil

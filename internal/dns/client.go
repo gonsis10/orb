@@ -1,5 +1,3 @@
-// Package dns provides a client for managing Cloudflare DNS records
-// and cloudflared service operations.
 package dns
 
 import (
