@@ -72,25 +72,57 @@ func (s *Service) Expose(subdomain, port string) error {
 		return fmt.Errorf("✖ %s is already mapped to %s\n  Run `orb tunnel unexpose %s` first, or use a different subdomain", host, existing, subdomain)
 	}
 
+	// start of TRANSACTION
+	orginalCfg := s.config.Backup(cfg)
+
 	// combine catchall and new subdomain to form new cloudlfare yaml
 	catchAll := cfg.Ingress[len(cfg.Ingress)-1]
+
+	configSaved := false
+	dnsAdded := false
+
+	defer func() {
+		if !dnsAdded {
+			return
+		}
+
+		// rollback and remove dns route
+		fmt.Printf("Rolling back: Removing DNS route for %s...\n", host)
+		if err := s.cloudflare.RemoveDNSRoute(orginalCfg.Tunnel, host); err != nil {
+			fmt.Printf("Failed to rollback DNS route for %s: %v\n", host, err)
+		}
+
+		if configSaved {
+			fmt.Println("Rolling back: Restoring original config...")
+			if err := s.config.Save(orginalCfg); err != nil {
+				fmt.Printf("Failed to restore original config: %v\n", err)
+			}
+		}
+	}()
+
 	cfg.Ingress = append(cfg.Ingress[:len(cfg.Ingress)-1], IngressRule{Hostname: host, Service: svc}, catchAll)
 
 	// save to yaml file
 	if err := s.config.Save(cfg); err != nil {
 		return err
 	}
+	configSaved = true
 
 	// create dns route
 	fmt.Printf("Creating DNS route for %s...\n", host)
 	if err := s.cloudflare.CreateDNSRoute(cfg.Tunnel, host); err != nil {
 		return fmt.Errorf("config updated but failed to create DNS route: %w", err)
 	}
+	dnsAdded = true
 
 	// restart cloudflared service
 	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
 		return fmt.Errorf("failed to restart cloudflared service: %w", err)
 	}
+
+	// reset rollback
+	configSaved = false
+	dnsAdded = false
 
 	fmt.Printf("✔ Exposed %s → %s\n", host, svc)
 	fmt.Printf("  Visit: https://%s\n", host)
@@ -119,8 +151,32 @@ func (s *Service) Unexpose(subdomain string) error {
 		return fmt.Errorf("✖ %s is not currently exposed", host)
 	}
 
-	// get old service
+	// start of TRANSACTION
+	orginalCfg := s.config.Backup(cfg)
 	oldService := cfg.Ingress[idx].Service
+
+	configSaved := false
+	dnsRemoved := false
+
+	defer func() {
+		if !dnsRemoved {
+			return
+		}
+
+		// rollback and re create dns route
+		fmt.Printf("Rolling back: Re-adding DNS route for %s...\n", host)
+		if err := s.cloudflare.CreateDNSRoute(orginalCfg.Tunnel, host); err != nil {
+			fmt.Printf("Failed to rollback DNS route for %s: %v\n", host, err)
+		}
+
+		if configSaved {
+			fmt.Println("Rolling back: Restoring original config...")
+			if err := s.config.Save(orginalCfg); err != nil {
+				fmt.Printf("Failed to restore original config: %v\n", err)
+			}
+		}
+	}()
+
 	// save new yaml without previous ingress rule
 	cfg.Ingress = append(cfg.Ingress[:idx], cfg.Ingress[idx+1:]...)
 
@@ -128,17 +184,23 @@ func (s *Service) Unexpose(subdomain string) error {
 	if err := s.config.Save(cfg); err != nil {
 		return err
 	}
+	configSaved = true
 
 	// remove domain from cloudflare dashboard
 	fmt.Printf("Removing DNS route for %s...\n", host)
 	if err := s.cloudflare.RemoveDNSRoute(cfg.Tunnel, host); err != nil {
 		return fmt.Errorf("config updated but failed to remove DNS route: %w", err)
 	}
+	dnsRemoved = true
 
 	// restart cloudflared service
 	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
 		return fmt.Errorf("failed to restart cloudflared service: %w", err)
 	}
+
+	// disable rollback
+	dnsRemoved = false
+	configSaved = false
 
 	fmt.Printf("✔ Removed %s (was → %s)\n", host, oldService)
 	return nil
@@ -160,6 +222,22 @@ func (s *Service) Update(subdomain, port string) error {
 		return err
 	}
 
+	// start of TRANSACTION
+	orginalCfg := s.config.Backup(cfg)
+
+	configSaved := false
+
+	defer func() {
+		if !configSaved {
+			return
+		}
+
+		fmt.Println("Rolling back: Restoring original config...")
+		if err := s.config.Save(orginalCfg); err != nil {
+			fmt.Printf("Failed to restore original config: %v\n", err)
+		}
+	}()
+
 	// modify subdomain port in config
 	if err := s.config.ModifySubdomainPort(cfg, subdomain, port); err != nil {
 		return err
@@ -169,6 +247,16 @@ func (s *Service) Update(subdomain, port string) error {
 	if err := s.config.Save(cfg); err != nil {
 		return err
 	}
+	configSaved = true
+
+	// restart cloudflared service
+	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, HostnameFor(subdomain)); err != nil {
+		return fmt.Errorf("failed to restart cloudflared service: %w", err)
+	}
+
+	// reset rollback
+	configSaved = false
+
 	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceFor(port))
 	return nil
 }

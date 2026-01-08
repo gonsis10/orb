@@ -107,6 +107,13 @@ func (m *ConfigManager) Save(config *Config) error {
 	return nil
 }
 
+func (m *ConfigManager) Backup(config *Config) *Config {
+	backup := *config
+	backup.Ingress = make([]IngressRule, len(config.Ingress))
+	copy(backup.Ingress, config.Ingress)
+	return &backup
+}
+
 // ModifySubdomainPort updates the port for a given subdomain in the config
 func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port string) error {
 	hostname := HostnameFor(subdomain)
