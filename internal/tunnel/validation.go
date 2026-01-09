@@ -1,7 +1,7 @@
 package tunnel
 
 import (
-	"errors"
+	"fmt"
 	"regexp"
 )
 
@@ -15,7 +15,7 @@ var (
 // ValidateSubdomain checks if a subdomain string is valid
 func ValidateSubdomain(s string) error {
 	if !subdomainRe.MatchString(s) {
-		return errors.New("invalid subdomain: use lowercase letters, digits, and hyphens (must start/end with alphanumeric)")
+		return fmt.Errorf("invalid subdomain: use lowercase letters, digits, and hyphens (must start/end with alphanumeric)")
 	}
 	return nil
 }
@@ -23,19 +23,19 @@ func ValidateSubdomain(s string) error {
 // ValidatePort checks if a port string is valid
 func ValidatePort(p string) error {
 	if !portRe.MatchString(p) {
-		return errors.New("invalid port: must be a number between 1-65535")
+		return fmt.Errorf("invalid port: must be a number between 1-65535")
 	}
 	return nil
 }
 
 // ValidateServiceType checks if a service type is valid
 func ValidateServiceType(t string) error {
-	switch t {
-	case "http", "tcp", "rtcp":
-		return nil
-	default:
-		return errors.New("invalid service type: must be http, tcp, or rtcp")
+	for _, valid := range ValidServiceTypes {
+		if t == valid {
+			return nil
+		}
 	}
+	return fmt.Errorf("invalid service type %q: must be one of %v", t, ValidServiceTypes)
 }
 
 // CURRENTLY DISABLED FOR BETTER DESIGN PRACTICES

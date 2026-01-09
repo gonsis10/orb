@@ -117,7 +117,7 @@ func (m *ConfigManager) Backup(config *Config) *Config {
 // ModifySubdomainPort updates the port and service type for a given subdomain in the config
 func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port, serviceType string) error {
 	hostname := HostnameFor(subdomain)
-	service := ServiceForType(port, serviceType)
+	service := ServiceURL(port, serviceType)
 
 	idx := m.FindIngressIndex(config, hostname)
 	if idx == -1 {
@@ -157,12 +157,19 @@ func HostnameFor(subdomain string) string {
 	return fmt.Sprintf("%s.%s", subdomain, Domain)
 }
 
-// ServiceFor formats a service URL from a port number (defaults to http)
-func ServiceFor(port string) string {
-	return fmt.Sprintf("http://localhost:%s", port)
-}
+// Service type constants
+const (
+	ServiceTypeHTTP = "http"
+	ServiceTypeTCP  = "tcp"
+	ServiceTypeRTCP = "rtcp"
 
-// ServiceForType formats a service URL from a port number and service type
-func ServiceForType(port, serviceType string) string {
+	DefaultServiceType = ServiceTypeHTTP
+)
+
+// ValidServiceTypes contains all supported service types
+var ValidServiceTypes = []string{ServiceTypeHTTP, ServiceTypeTCP, ServiceTypeRTCP}
+
+// ServiceURL formats a service URL from a port number and service type
+func ServiceURL(port, serviceType string) string {
 	return fmt.Sprintf("%s://localhost:%s", serviceType, port)
 }

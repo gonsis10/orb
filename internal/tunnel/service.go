@@ -52,7 +52,7 @@ func (s *Service) Expose(subdomain, port, serviceType string) error {
 
 	// get hostname and service
 	host := HostnameFor(subdomain)
-	svc := ServiceForType(port, serviceType)
+	svc := ServiceURL(port, serviceType)
 
 	// get cloudflare config yaml
 	cfg, err := s.config.Load()
@@ -263,7 +263,7 @@ func (s *Service) Update(subdomain, port, serviceType string) error {
 	// reset rollback
 	configSaved = false
 
-	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceForType(port, serviceType))
+	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceURL(port, serviceType))
 	return nil
 }
 

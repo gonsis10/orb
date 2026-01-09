@@ -1,14 +1,20 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"orb/internal/tunnel"
 
 	"github.com/spf13/cobra"
 )
 
-var tunnelSvc *tunnel.Service
-var exposeType string
-var updateType string
+var (
+	tunnelSvc   *tunnel.Service
+	exposeType  string
+	updateType  string
+	serviceDesc = fmt.Sprintf("Service type: %s", strings.Join(tunnel.ValidServiceTypes, ", "))
+)
 
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
@@ -32,6 +38,9 @@ func init() {
 	tunnelCmd.AddCommand(unexposeCmd)
 	tunnelCmd.AddCommand(updateCmd)
 	tunnelCmd.AddCommand(listCmd)
+
+	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
+	updateCmd.Flags().StringVarP(&updateType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 }
 
 var exposeCmd = &cobra.Command{
@@ -42,10 +51,6 @@ var exposeCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelSvc.Expose(args[0], args[1], exposeType)
 	},
-}
-
-func init() {
-	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", "http", "Service type: http, tcp, or rtcp")
 }
 
 var unexposeCmd = &cobra.Command{
@@ -67,10 +72,6 @@ var updateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelSvc.Update(args[0], args[1], updateType)
 	},
-}
-
-func init() {
-	updateCmd.Flags().StringVarP(&updateType, "type", "t", "http", "Service type: http, tcp, or rtcp")
 }
 
 var listCmd = &cobra.Command{
