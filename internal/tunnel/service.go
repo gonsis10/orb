@@ -210,12 +210,15 @@ func (s *Service) Unexpose(subdomain string) error {
 }
 
 // Update changes the port mapping for an existing subdomain
-func (s *Service) Update(subdomain, port string) error {
+func (s *Service) Update(subdomain, port, serviceType string) error {
 	// validate arguments
 	if err := ValidateSubdomain(subdomain); err != nil {
 		return err
 	}
 	if err := ValidatePort(port); err != nil {
+		return err
+	}
+	if err := ValidateServiceType(serviceType); err != nil {
 		return err
 	}
 
@@ -242,7 +245,7 @@ func (s *Service) Update(subdomain, port string) error {
 	}()
 
 	// modify subdomain port in config
-	if err := s.config.ModifySubdomainPort(cfg, subdomain, port); err != nil {
+	if err := s.config.ModifySubdomainPort(cfg, subdomain, port, serviceType); err != nil {
 		return err
 	}
 
@@ -260,7 +263,7 @@ func (s *Service) Update(subdomain, port string) error {
 	// reset rollback
 	configSaved = false
 
-	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceFor(port))
+	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceForType(port, serviceType))
 	return nil
 }
 

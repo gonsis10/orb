@@ -114,10 +114,10 @@ func (m *ConfigManager) Backup(config *Config) *Config {
 	return &backup
 }
 
-// ModifySubdomainPort updates the port for a given subdomain in the config
-func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port string) error {
+// ModifySubdomainPort updates the port and service type for a given subdomain in the config
+func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port, serviceType string) error {
 	hostname := HostnameFor(subdomain)
-	service := ServiceFor(port)
+	service := ServiceForType(port, serviceType)
 
 	idx := m.FindIngressIndex(config, hostname)
 	if idx == -1 {

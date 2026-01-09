@@ -8,6 +8,7 @@ import (
 
 var tunnelSvc *tunnel.Service
 var exposeType string
+var updateType string
 
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
@@ -59,14 +60,17 @@ var unexposeCmd = &cobra.Command{
 }
 
 var updateCmd = &cobra.Command{
-	Use:                   "update <subdomain> <port>",
-	Short:                 "Update the port for an exposed subdomain.",
-	Example:               "  orb tunnel update api 9090",
-	Args:                  cobra.ExactArgs(2),
-	DisableFlagsInUseLine: true,
+	Use:     "update <subdomain> <port>",
+	Short:   "Update the port for an exposed subdomain.",
+	Example: "  orb tunnel update api 9090\n  orb tunnel update api 9090 --type tcp",
+	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return tunnelSvc.Update(args[0], args[1])
+		return tunnelSvc.Update(args[0], args[1], updateType)
 	},
+}
+
+func init() {
+	updateCmd.Flags().StringVarP(&updateType, "type", "t", "http", "Service type: http, tcp, or rtcp")
 }
 
 var listCmd = &cobra.Command{
