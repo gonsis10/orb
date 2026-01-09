@@ -7,6 +7,7 @@ import (
 )
 
 var tunnelSvc *tunnel.Service
+var exposeType string
 
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
@@ -33,14 +34,17 @@ func init() {
 }
 
 var exposeCmd = &cobra.Command{
-	Use:                   "expose <subdomain> <port>",
-	Short:                 "Expose a local port at subdomain." + tunnel.Domain,
-	Example:               "  orb tunnel expose api 8080",
-	Args:                  cobra.ExactArgs(2),
-	DisableFlagsInUseLine: true,
+	Use:     "expose <subdomain> <port>",
+	Short:   "Expose a local port at subdomain." + tunnel.Domain,
+	Example: "  orb tunnel expose api 8080\n  orb tunnel expose api 8080 --type tcp",
+	Args:    cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return tunnelSvc.Expose(args[0], args[1])
+		return tunnelSvc.Expose(args[0], args[1], exposeType)
 	},
+}
+
+func init() {
+	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", "http", "Service type: http, tcp, or rtcp")
 }
 
 var unexposeCmd = &cobra.Command{

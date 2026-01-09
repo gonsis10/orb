@@ -157,7 +157,12 @@ func HostnameFor(subdomain string) string {
 	return fmt.Sprintf("%s.%s", subdomain, Domain)
 }
 
-// ServiceFor formats a service URL from a port number
+// ServiceFor formats a service URL from a port number (defaults to http)
 func ServiceFor(port string) string {
 	return fmt.Sprintf("http://localhost:%s", port)
+}
+
+// ServiceForType formats a service URL from a port number and service type
+func ServiceForType(port, serviceType string) string {
+	return fmt.Sprintf("%s://localhost:%s", serviceType, port)
 }

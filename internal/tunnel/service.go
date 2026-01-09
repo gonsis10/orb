@@ -38,7 +38,7 @@ func NewService() (*Service, error) {
 }
 
 // Expose makes a local port accessible through a Cloudflare Tunnel subdomain
-func (s *Service) Expose(subdomain, port string) error {
+func (s *Service) Expose(subdomain, port, serviceType string) error {
 	// validation of arguments and if server is running
 	if err := ValidateSubdomain(subdomain); err != nil {
 		return err
@@ -46,10 +46,13 @@ func (s *Service) Expose(subdomain, port string) error {
 	if err := ValidatePort(port); err != nil {
 		return err
 	}
+	if err := ValidateServiceType(serviceType); err != nil {
+		return err
+	}
 
 	// get hostname and service
 	host := HostnameFor(subdomain)
-	svc := ServiceFor(port)
+	svc := ServiceForType(port, serviceType)
 
 	// get cloudflare config yaml
 	cfg, err := s.config.Load()

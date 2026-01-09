@@ -28,6 +28,16 @@ func ValidatePort(p string) error {
 	return nil
 }
 
+// ValidateServiceType checks if a service type is valid
+func ValidateServiceType(t string) error {
+	switch t {
+	case "http", "tcp", "rtcp":
+		return nil
+	default:
+		return errors.New("invalid service type: must be http, tcp, or rtcp")
+	}
+}
+
 // CURRENTLY DISABLED FOR BETTER DESIGN PRACTICES
 // EnsurePortListening checks if a service is listening on the given port
 // func EnsurePortListening(port string) error {
