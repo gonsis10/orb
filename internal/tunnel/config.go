@@ -159,15 +159,29 @@ func HostnameFor(subdomain string) string {
 
 // Service type constants
 const (
-	ServiceTypeHTTP = "http"
-	ServiceTypeTCP  = "tcp"
-	ServiceTypeRTCP = "rtcp"
+	ServiceTypeHTTP  = "http"
+	ServiceTypeHTTPS = "https"
+	ServiceTypeTCP   = "tcp"
+	ServiceTypeUDP   = "udp"
+	ServiceTypeSSH   = "ssh"
+	ServiceTypeRDP   = "rdp"
+	ServiceTypeSMB   = "smb"
+	ServiceTypeUnix  = "unix"
 
 	DefaultServiceType = ServiceTypeHTTP
 )
 
 // ValidServiceTypes contains all supported service types
-var ValidServiceTypes = []string{ServiceTypeHTTP, ServiceTypeTCP, ServiceTypeRTCP}
+var ValidServiceTypes = []string{
+	ServiceTypeHTTP,
+	ServiceTypeHTTPS,
+	ServiceTypeTCP,
+	ServiceTypeUDP,
+	ServiceTypeSSH,
+	ServiceTypeRDP,
+	ServiceTypeSMB,
+	ServiceTypeUnix,
+}
 
 // ServiceURL formats a service URL from a port number and service type
 func ServiceURL(port, serviceType string) string {
