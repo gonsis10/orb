@@ -324,6 +324,16 @@ func (s *Service) Health(subdomain string) error {
 	return nil
 }
 
+// Restart restarts the cloudflared service
+func (s *Service) Restart() error {
+	fmt.Println("Restarting cloudflared service...")
+	if err := s.cloudflare.RestartCloudflaredService("", ""); err != nil {
+		return err
+	}
+	fmt.Println("✔ Cloudflared service restarted successfully")
+	return nil
+}
+
 // checkHealth makes an HTTP request to check if a hostname is healthy
 func (s *Service) checkHealth(hostname string) string {
 	url := fmt.Sprintf("https://%s", hostname)

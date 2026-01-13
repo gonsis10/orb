@@ -39,6 +39,7 @@ func init() {
 	tunnelCmd.AddCommand(updateCmd)
 	tunnelCmd.AddCommand(listCmd)
 	tunnelCmd.AddCommand(healthCmd)
+	tunnelCmd.AddCommand(restartCmd)
 
 	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 	updateCmd.Flags().StringVarP(&updateType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
@@ -93,5 +94,15 @@ var healthCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelSvc.Health(args[0])
+	},
+}
+
+var restartCmd = &cobra.Command{
+	Use:                   "restart",
+	Short:                 "Restart the cloudflared service",
+	Args:                  cobra.NoArgs,
+	DisableFlagsInUseLine: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return tunnelSvc.Restart()
 	},
 }
