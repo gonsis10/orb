@@ -38,6 +38,7 @@ func init() {
 	tunnelCmd.AddCommand(unexposeCmd)
 	tunnelCmd.AddCommand(updateCmd)
 	tunnelCmd.AddCommand(listCmd)
+	tunnelCmd.AddCommand(healthCmd)
 
 	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 	updateCmd.Flags().StringVarP(&updateType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
@@ -81,5 +82,16 @@ var listCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelSvc.List()
+	},
+}
+
+var healthCmd = &cobra.Command{
+	Use:                   "health <subdomain>",
+	Short:                 "Check if a subdomain is healthy and reachable",
+	Example:               "  orb tunnel health api",
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return tunnelSvc.Health(args[0])
 	},
 }

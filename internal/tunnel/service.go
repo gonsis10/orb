@@ -1,8 +1,11 @@
 package tunnel
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	"orb/internal/dns"
 
@@ -264,6 +267,60 @@ func (s *Service) Update(subdomain, port, serviceType string) error {
 	configSaved = false
 
 	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceURL(port, serviceType))
+	return nil
+}
+
+// Health checks if a subdomain is healthy and reachable
+func (s *Service) Health(subdomain string) error {
+	// validate subdomain
+	if err := ValidateSubdomain(subdomain); err != nil {
+		return err
+	}
+
+	// get hostname for subdomain
+	host := HostnameFor(subdomain)
+
+	// load cloudflare config
+	cfg, err := s.config.Load()
+	if err != nil {
+		return err
+	}
+
+	// check if subdomain exists in config
+	idx := s.config.FindIngressIndex(cfg, host)
+	if idx == -1 {
+		return fmt.Errorf("✖ %s is not currently exposed", host)
+	}
+
+	url := fmt.Sprintf("https://%s", host)
+	fmt.Printf("Checking health of %s...\n", url)
+
+	// create http client with timeout
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: false,
+			},
+		},
+	}
+
+	// make request
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Printf("✖ %s is unhealthy\n", host)
+		fmt.Printf("  Error: %v\n", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// check status code
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		fmt.Printf("✔ %s is healthy (status: %d %s)\n", host, resp.StatusCode, http.StatusText(resp.StatusCode))
+	} else {
+		fmt.Printf("⚠ %s returned status %d %s\n", host, resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+
 	return nil
 }
 
