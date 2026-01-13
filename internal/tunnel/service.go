@@ -324,6 +324,31 @@ func (s *Service) Health(subdomain string) error {
 	return nil
 }
 
+// checkHealth makes an HTTP request to check if a hostname is healthy
+func (s *Service) checkHealth(hostname string) string {
+	url := fmt.Sprintf("https://%s", hostname)
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: false,
+			},
+		},
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return "✖ unhealthy"
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		return "✔ healthy"
+	}
+	return fmt.Sprintf("⚠ %d", resp.StatusCode)
+}
+
 // List displays all exposed subdomains and their port mappings
 func (s *Service) List() error {
 	// load cloudflare config
@@ -340,16 +365,20 @@ func (s *Service) List() error {
 
 	// create table
 	table := tablewriter.NewWriter(os.Stdout)
-	table.Header("URL", "Target")
+	table.Header("URL", "Target", "Status")
+
+	fmt.Println("\nChecking health of exposed services...")
 
 	// add rows to table
 	for _, rule := range cfg.Ingress {
 		if rule.Hostname == "" {
 			continue
 		}
+		status := s.checkHealth(rule.Hostname)
 		if err := table.Append(
 			fmt.Sprintf("https://%s", rule.Hostname),
 			rule.Service,
+			status,
 		); err != nil {
 			return fmt.Errorf("failed to add table row: %w", err)
 		}
