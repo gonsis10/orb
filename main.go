@@ -29,7 +29,7 @@ func loadEnv() {
 
 	// Check if required variables are already set
 	if !loaded {
-		requiredVars := []string{"DOMAIN", "CONFIG_PATH", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ZONE_ID"}
+		requiredVars := []string{"DOMAIN", "CONFIG_PATH", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ZONE_ID", "CLOUDFLARE_ACCOUNT_ID"}
 		allSet := true
 		for _, v := range requiredVars {
 			if os.Getenv(v) == "" {
@@ -46,7 +46,7 @@ func loadEnv() {
 			fmt.Fprintln(os.Stderr, "  mkdir -p ~/.config/orb")
 			fmt.Fprintln(os.Stderr, "  nano ~/.config/orb/.env")
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "Required variables: DOMAIN, CONFIG_PATH, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID")
+			fmt.Fprintln(os.Stderr, "Required variables: DOMAIN, CONFIG_PATH, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_ACCOUNT_ID")
 		} else {
 			fmt.Fprintln(os.Stderr, "Using environment variables")
 		}

@@ -326,11 +326,41 @@ func (s *Service) Health(subdomain string) error {
 
 // Restart restarts the cloudflared service
 func (s *Service) Restart() error {
-	fmt.Println("Restarting cloudflared service...")
-	if err := s.cloudflare.RestartCloudflaredService("", ""); err != nil {
+	cfg, err := s.config.Load()
+	if err != nil {
 		return err
 	}
-	fmt.Println("✔ Cloudflared service restarted successfully")
+
+	tunnelName, err := s.cloudflare.GetTunnelName(cfg.Tunnel)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Restarting cloudflared-%s service...\n", tunnelName)
+	if err := s.cloudflare.RestartCloudflaredService(tunnelName, ""); err != nil {
+		return err
+	}
+	fmt.Printf("✔ cloudflared-%s service restarted successfully\n", tunnelName)
+	return nil
+}
+
+// Status shows the cloudflared service status
+func (s *Service) Status() error {
+	cfg, err := s.config.Load()
+	if err != nil {
+		return err
+	}
+
+	tunnelName, err := s.cloudflare.GetTunnelName(cfg.Tunnel)
+	if err != nil {
+		return err
+	}
+
+	output, err := s.cloudflare.GetServiceStatus(tunnelName)
+	if err != nil {
+		return err
+	}
+	fmt.Print(output)
 	return nil
 }
 
