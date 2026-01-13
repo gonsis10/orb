@@ -364,6 +364,44 @@ func (s *Service) Status() error {
 	return nil
 }
 
+// Logs shows the cloudflared service logs, optionally filtered by subdomain
+func (s *Service) Logs(subdomain string, lines int, follow bool) error {
+	cfg, err := s.config.Load()
+	if err != nil {
+		return err
+	}
+
+	tunnelName, err := s.cloudflare.GetTunnelName(cfg.Tunnel)
+	if err != nil {
+		return err
+	}
+
+	var hostname string
+	if subdomain != "" {
+		if err := ValidateSubdomain(subdomain); err != nil {
+			return err
+		}
+		hostname = fmt.Sprintf("%s.%s", subdomain, s.env.Domain)
+
+		// check if subdomain exists in config
+		idx := s.config.FindIngressIndex(cfg, hostname)
+		if idx == -1 {
+			return fmt.Errorf("✖ %s is not currently exposed", hostname)
+		}
+	}
+
+	if follow {
+		return s.cloudflare.FollowServiceLogs(tunnelName, hostname)
+	}
+
+	output, err := s.cloudflare.GetServiceLogs(tunnelName, lines, hostname)
+	if err != nil {
+		return err
+	}
+	fmt.Print(output)
+	return nil
+}
+
 // checkHealth makes an HTTP request to check if a hostname is healthy
 func (s *Service) checkHealth(hostname string) string {
 	url := fmt.Sprintf("https://%s", hostname)

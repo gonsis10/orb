@@ -132,3 +132,19 @@ func (c *Client) GetServiceLogs(tunnelName string, lines int, hostname string) (
 	}
 	return string(output), nil
 }
+
+// FollowServiceLogs follows the logs of the cloudflared service in real-time
+func (c *Client) FollowServiceLogs(tunnelName string, hostname string) error {
+	serviceName := fmt.Sprintf("cloudflared-%s", tunnelName)
+	args := []string{"-u", serviceName, "-f"}
+
+	if hostname != "" {
+		args = append(args, "--grep", hostname)
+	}
+
+	cmd := exec.Command("journalctl", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}

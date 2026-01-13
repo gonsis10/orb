@@ -13,6 +13,8 @@ var (
 	tunnelSvc   *tunnel.Service
 	exposeType  string
 	updateType  string
+	logsFollow  bool
+	logsLines   int
 	serviceDesc = fmt.Sprintf("Service type: %s", strings.Join(tunnel.ValidServiceTypes, ", "))
 )
 
@@ -41,9 +43,12 @@ func init() {
 	tunnelCmd.AddCommand(healthCmd)
 	tunnelCmd.AddCommand(restartCmd)
 	tunnelCmd.AddCommand(statusCmd)
+	tunnelCmd.AddCommand(logsCmd)
 
 	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 	updateCmd.Flags().StringVarP(&updateType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
+	logsCmd.Flags().BoolVarP(&logsFollow, "follow", "f", false, "Follow logs in real-time")
+	logsCmd.Flags().IntVarP(&logsLines, "lines", "n", 50, "Number of lines to show")
 }
 
 var exposeCmd = &cobra.Command{
@@ -115,5 +120,25 @@ var statusCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelSvc.Status()
+	},
+}
+
+var logsCmd = &cobra.Command{
+	Use:   "logs [subdomain]",
+	Short: "Show cloudflared service logs",
+	Long: `Show cloudflared service logs, optionally filtered by subdomain.
+
+Examples:
+  orb tunnel logs              # Show last 50 log lines
+  orb tunnel logs api          # Show logs for api subdomain
+  orb tunnel logs api -f       # Follow logs for api subdomain in real-time
+  orb tunnel logs -n 100       # Show last 100 log lines`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		subdomain := ""
+		if len(args) > 0 {
+			subdomain = args[0]
+		}
+		return tunnelSvc.Logs(subdomain, logsLines, logsFollow)
 	},
 }
