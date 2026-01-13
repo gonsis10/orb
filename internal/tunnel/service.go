@@ -278,7 +278,7 @@ func (s *Service) Health(subdomain string) error {
 	}
 
 	// get hostname for subdomain
-	host := HostnameFor(subdomain)
+	host := fmt.Sprintf("%s.%s", subdomain, s.env.Domain)
 
 	// load cloudflare config
 	cfg, err := s.config.Load()
