@@ -91,6 +91,24 @@ func (c *Client) RemoveDNSRoute(tunnelID, hostname string) error {
 	return nil
 }
 
+// FlushLocalDNSCache flushes the local DNS cache to pick up new DNS records
+func (c *Client) FlushLocalDNSCache() error {
+	// Try systemd-resolved first (Ubuntu/Debian)
+	cmd := exec.Command("sudo", "systemd-resolve", "--flush-caches")
+	if err := cmd.Run(); err == nil {
+		return nil
+	}
+
+	// Try resolvectl (newer systemd)
+	cmd = exec.Command("sudo", "resolvectl", "flush-caches")
+	if err := cmd.Run(); err == nil {
+		return nil
+	}
+
+	// If both fail, it's not critical - DNS will eventually refresh
+	return nil
+}
+
 // RestartCloudflaredService restarts the cloudflared service to apply DNS changes
 func (c *Client) RestartCloudflaredService(tunnelName, hostname string) error {
 	serviceName := fmt.Sprintf("cloudflared-%s", tunnelName)

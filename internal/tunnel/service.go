@@ -124,6 +124,9 @@ func (s *Service) Expose(subdomain, port, serviceType, accessLevel string) error
 	}
 	dnsAdded = true
 
+	// flush local DNS cache to pick up new record immediately
+	s.cloudflare.FlushLocalDNSCache()
+
 	// create access policy if not public
 	if accessLevel != AccessLevelPublic {
 		fmt.Printf("Creating Zero Trust access policy (%s)...\n", accessLevel)
@@ -136,8 +139,14 @@ func (s *Service) Expose(subdomain, port, serviceType, accessLevel string) error
 		}
 	}
 
+	// get tunnel name from tunnel ID
+	tunnelName, err := s.cloudflare.GetTunnelName(cfg.Tunnel)
+	if err != nil {
+		return fmt.Errorf("failed to get tunnel name: %w", err)
+	}
+
 	// restart cloudflared service
-	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
+	if err := s.cloudflare.RestartCloudflaredService(tunnelName, host); err != nil {
 		return fmt.Errorf("failed to restart cloudflared service: %w", err)
 	}
 
@@ -217,6 +226,9 @@ func (s *Service) Unexpose(subdomain string) error {
 	}
 	dnsRemoved = true
 
+	// flush local DNS cache to remove stale record immediately
+	s.cloudflare.FlushLocalDNSCache()
+
 	// remove access policy if it exists
 	fmt.Printf("Removing Zero Trust access policy (if any)...\n")
 	if err := s.cloudflare.RemoveAccessPolicy(host); err != nil {
@@ -224,8 +236,14 @@ func (s *Service) Unexpose(subdomain string) error {
 		// Don't fail the whole operation if access policy removal fails
 	}
 
+	// get tunnel name from tunnel ID
+	tunnelName, err := s.cloudflare.GetTunnelName(cfg.Tunnel)
+	if err != nil {
+		return fmt.Errorf("failed to get tunnel name: %w", err)
+	}
+
 	// restart cloudflared service
-	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
+	if err := s.cloudflare.RestartCloudflaredService(tunnelName, host); err != nil {
 		return fmt.Errorf("failed to restart cloudflared service: %w", err)
 	}
 
