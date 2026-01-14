@@ -38,6 +38,16 @@ func ValidateServiceType(t string) error {
 	return fmt.Errorf("invalid service type %q: must be one of %v", t, ValidServiceTypes)
 }
 
+// ValidateAccessLevel checks if an access level is valid
+func ValidateAccessLevel(level string) error {
+	for _, valid := range ValidAccessLevels {
+		if level == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid access level %q: must be one of %v", level, ValidAccessLevels)
+}
+
 // CURRENTLY DISABLED FOR BETTER DESIGN PRACTICES
 // EnsurePortListening checks if a service is listening on the given port
 // func EnsurePortListening(port string) error {

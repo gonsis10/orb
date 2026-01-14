@@ -10,12 +10,15 @@ import (
 )
 
 var (
-	tunnelSvc   *tunnel.Service
-	exposeType  string
-	updateType  string
-	logsFollow  bool
-	logsLines   int
-	serviceDesc = fmt.Sprintf("Service type: %s", strings.Join(tunnel.ValidServiceTypes, ", "))
+	tunnelSvc    *tunnel.Service
+	exposeType   string
+	exposeAccess string
+	exposeEmails string
+	updateType   string
+	logsFollow   bool
+	logsLines    int
+	serviceDesc  = fmt.Sprintf("Service type: %s", strings.Join(tunnel.ValidServiceTypes, ", "))
+	accessDesc   = fmt.Sprintf("Access level: %s", strings.Join(tunnel.ValidAccessLevels, ", "))
 )
 
 var tunnelCmd = &cobra.Command{
@@ -46,18 +49,23 @@ func init() {
 	tunnelCmd.AddCommand(logsCmd)
 
 	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
+	exposeCmd.Flags().StringVarP(&exposeAccess, "access", "a", tunnel.DefaultAccessLevel, accessDesc)
+	exposeCmd.Flags().StringVar(&exposeEmails, "emails", "", "Comma-separated emails for group access (only with --access=group)")
 	updateCmd.Flags().StringVarP(&updateType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 	logsCmd.Flags().BoolVarP(&logsFollow, "follow", "f", false, "Follow logs in real-time")
 	logsCmd.Flags().IntVarP(&logsLines, "lines", "n", 50, "Number of lines to show")
 }
 
 var exposeCmd = &cobra.Command{
-	Use:     "expose <subdomain> <port>",
-	Short:   "Expose a local port at subdomain." + tunnel.Domain,
-	Example: "  orb tunnel expose api 8080\n  orb tunnel expose api 8080 --type tcp",
-	Args:    cobra.ExactArgs(2),
+	Use:   "expose <subdomain> <port>",
+	Short: "Expose a local port at subdomain." + tunnel.Domain,
+	Example: `  orb tunnel expose api 8080
+  orb tunnel expose api 8080 --type tcp
+  orb tunnel expose api 8080 --access private
+  orb tunnel expose api 8080 --access group --emails user@example.com,friend@example.com`,
+	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return tunnelSvc.Expose(args[0], args[1], exposeType)
+		return tunnelSvc.Expose(args[0], args[1], exposeType, exposeAccess, exposeEmails)
 	},
 }
 

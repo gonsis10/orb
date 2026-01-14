@@ -47,6 +47,8 @@ func loadEnv() {
 			fmt.Fprintln(os.Stderr, "  nano ~/.config/orb/.env")
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, "Required variables: DOMAIN, CONFIG_PATH, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_ACCOUNT_ID")
+			fmt.Fprintln(os.Stderr, "Optional: USER_EMAIL (required for private access level)")
+
 		} else {
 			fmt.Fprintln(os.Stderr, "Using environment variables")
 		}

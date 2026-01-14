@@ -148,3 +148,82 @@ func (c *Client) FollowServiceLogs(tunnelName string, hostname string) error {
 
 	return cmd.Run()
 }
+
+// CreateAccessPolicy creates a Cloudflare Access policy for a hostname
+func (c *Client) CreateAccessPolicy(hostname, accessLevel, userEmail string, groupEmails []string) error {
+	ctx := context.Background()
+
+	// If access level is public, don't create a policy
+	if accessLevel == "public" {
+		return nil
+	}
+
+	// Build include rules based on access level
+	var include []any
+	switch accessLevel {
+	case "private":
+		include = []any{
+			cloudflare.AccessGroupEmail{Email: struct {
+				Email string `json:"email"`
+			}{Email: userEmail}},
+		}
+	case "group":
+		// Add each email as a separate rule (OR logic)
+		for _, email := range groupEmails {
+			include = append(include, cloudflare.AccessGroupEmail{Email: struct {
+				Email string `json:"email"`
+			}{Email: email}})
+		}
+	}
+
+	// Create the access application
+	createdApp, err := c.api.CreateAccessApplication(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.CreateAccessApplicationParams{
+		Name:   fmt.Sprintf("orb-%s", hostname),
+		Domain: hostname,
+		Type:   "self_hosted",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create access application: %w", err)
+	}
+
+	// Create the access policy
+	_, err = c.api.CreateAccessPolicy(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.CreateAccessPolicyParams{
+		ApplicationID: createdApp.ID,
+		Name:          fmt.Sprintf("orb-%s-policy", hostname),
+		Decision:      "allow",
+		Include:       include,
+		Precedence:    1,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create access policy: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveAccessPolicy removes the Cloudflare Access policy for a hostname
+func (c *Client) RemoveAccessPolicy(hostname string) error {
+	ctx := context.Background()
+
+	// List all access applications
+	apps, _, err := c.api.ListAccessApplications(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessApplicationsParams{})
+	if err != nil {
+		return fmt.Errorf("failed to list access applications: %w", err)
+	}
+
+	// Find the application for this hostname
+	appName := fmt.Sprintf("orb-%s", hostname)
+	for _, app := range apps {
+		if app.Name == appName {
+			// Delete the application (this also deletes associated policies)
+			err := c.api.DeleteAccessApplication(ctx, cloudflare.AccountIdentifier(c.accountID), app.ID)
+			if err != nil {
+				return fmt.Errorf("failed to delete access application: %w", err)
+			}
+			return nil
+		}
+	}
+
+	// Not found is not an error
+	return nil
+}

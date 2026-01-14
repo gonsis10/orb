@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"orb/internal/dns"
@@ -41,7 +42,7 @@ func NewService() (*Service, error) {
 }
 
 // Expose makes a local port accessible through a Cloudflare Tunnel subdomain
-func (s *Service) Expose(subdomain, port, serviceType string) error {
+func (s *Service) Expose(subdomain, port, serviceType, accessLevel, emails string) error {
 	// validation of arguments and if server is running
 	if err := ValidateSubdomain(subdomain); err != nil {
 		return err
@@ -51,6 +52,12 @@ func (s *Service) Expose(subdomain, port, serviceType string) error {
 	}
 	if err := ValidateServiceType(serviceType); err != nil {
 		return err
+	}
+	if err := ValidateAccessLevel(accessLevel); err != nil {
+		return err
+	}
+	if accessLevel == AccessLevelGroup && emails == "" {
+		return fmt.Errorf("--emails is required when --access=group")
 	}
 
 	// get hostname and service
@@ -121,6 +128,25 @@ func (s *Service) Expose(subdomain, port, serviceType string) error {
 	}
 	dnsAdded = true
 
+	// create access policy if not public
+	if accessLevel != AccessLevelPublic {
+		fmt.Printf("Creating Zero Trust access policy (%s)...\n", accessLevel)
+		var groupEmails []string
+		if emails != "" {
+			groupEmails = strings.Split(emails, ",")
+			for i := range groupEmails {
+				groupEmails[i] = strings.TrimSpace(groupEmails[i])
+			}
+		}
+		userEmail := os.Getenv("USER_EMAIL")
+		if userEmail == "" && accessLevel == AccessLevelPrivate {
+			return fmt.Errorf("USER_EMAIL environment variable required for private access")
+		}
+		if err := s.cloudflare.CreateAccessPolicy(host, accessLevel, userEmail, groupEmails); err != nil {
+			return fmt.Errorf("failed to create access policy: %w", err)
+		}
+	}
+
 	// restart cloudflared service
 	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
 		return fmt.Errorf("failed to restart cloudflared service: %w", err)
@@ -130,8 +156,11 @@ func (s *Service) Expose(subdomain, port, serviceType string) error {
 	configSaved = false
 	dnsAdded = false
 
-	fmt.Printf("✔ Exposed %s → %s\n", host, svc)
-	fmt.Printf("  Visit: https://%s\n", host)
+	fmt.Printf("✔ Exposed %s → %s", host, svc)
+	if accessLevel != AccessLevelPublic {
+		fmt.Printf(" [%s access]", accessLevel)
+	}
+	fmt.Printf("\n  Visit: https://%s\n", host)
 	return nil
 }
 
@@ -198,6 +227,13 @@ func (s *Service) Unexpose(subdomain string) error {
 		return fmt.Errorf("config updated but failed to remove DNS route: %w", err)
 	}
 	dnsRemoved = true
+
+	// remove access policy if it exists
+	fmt.Printf("Removing Zero Trust access policy (if any)...\n")
+	if err := s.cloudflare.RemoveAccessPolicy(host); err != nil {
+		fmt.Printf("Warning: failed to remove access policy: %v\n", err)
+		// Don't fail the whole operation if access policy removal fails
+	}
 
 	// restart cloudflared service
 	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, host); err != nil {
