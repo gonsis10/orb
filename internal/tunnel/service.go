@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"orb/internal/dns"
@@ -42,7 +41,7 @@ func NewService() (*Service, error) {
 }
 
 // Expose makes a local port accessible through a Cloudflare Tunnel subdomain
-func (s *Service) Expose(subdomain, port, serviceType, accessLevel, emails string) error {
+func (s *Service) Expose(subdomain, port, serviceType, accessLevel string) error {
 	// validation of arguments and if server is running
 	if err := ValidateSubdomain(subdomain); err != nil {
 		return err
@@ -55,9 +54,6 @@ func (s *Service) Expose(subdomain, port, serviceType, accessLevel, emails strin
 	}
 	if err := ValidateAccessLevel(accessLevel); err != nil {
 		return err
-	}
-	if accessLevel == AccessLevelGroup && emails == "" {
-		return fmt.Errorf("--emails is required when --access=group")
 	}
 
 	// get hostname and service
@@ -131,18 +127,11 @@ func (s *Service) Expose(subdomain, port, serviceType, accessLevel, emails strin
 	// create access policy if not public
 	if accessLevel != AccessLevelPublic {
 		fmt.Printf("Creating Zero Trust access policy (%s)...\n", accessLevel)
-		var groupEmails []string
-		if emails != "" {
-			groupEmails = strings.Split(emails, ",")
-			for i := range groupEmails {
-				groupEmails[i] = strings.TrimSpace(groupEmails[i])
-			}
-		}
 		userEmail := os.Getenv("USER_EMAIL")
 		if userEmail == "" && accessLevel == AccessLevelPrivate {
 			return fmt.Errorf("USER_EMAIL environment variable required for private access")
 		}
-		if err := s.cloudflare.CreateAccessPolicy(host, accessLevel, userEmail, groupEmails); err != nil {
+		if err := s.cloudflare.CreateAccessPolicy(host, accessLevel, userEmail); err != nil {
 			return fmt.Errorf("failed to create access policy: %w", err)
 		}
 	}
@@ -505,4 +494,19 @@ func (s *Service) List() error {
 	}
 
 	return nil
+}
+
+// CreateAccessGroup creates a Cloudflare Access group with email addresses
+func (s *Service) CreateAccessGroup(groupName, emails string) error {
+	return s.cloudflare.CreateAccessGroup(groupName, emails)
+}
+
+// ListAccessGroups lists all Cloudflare Access groups
+func (s *Service) ListAccessGroups() error {
+	return s.cloudflare.ListAccessGroupsFormatted()
+}
+
+// DeleteAccessGroup deletes a Cloudflare Access group by name
+func (s *Service) DeleteAccessGroup(groupName string) error {
+	return s.cloudflare.DeleteAccessGroup(groupName)
 }

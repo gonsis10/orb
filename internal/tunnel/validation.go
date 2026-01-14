@@ -39,13 +39,13 @@ func ValidateServiceType(t string) error {
 }
 
 // ValidateAccessLevel checks if an access level is valid
+// Accepts "public", "private", or any group name
 func ValidateAccessLevel(level string) error {
-	for _, valid := range ValidAccessLevels {
-		if level == valid {
-			return nil
-		}
+	if level == "" {
+		return fmt.Errorf("access level cannot be empty")
 	}
-	return fmt.Errorf("invalid access level %q: must be one of %v", level, ValidAccessLevels)
+	// Any non-empty string is valid (public, private, or group name)
+	return nil
 }
 
 // CURRENTLY DISABLED FOR BETTER DESIGN PRACTICES

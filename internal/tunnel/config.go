@@ -187,17 +187,9 @@ var ValidServiceTypes = []string{
 const (
 	AccessLevelPublic  = "public"  // No access policy (default)
 	AccessLevelPrivate = "private" // Only authenticated user
-	AccessLevelGroup   = "group"   // Specific group of users
 
 	DefaultAccessLevel = AccessLevelPublic
 )
-
-// ValidAccessLevels contains all supported access levels
-var ValidAccessLevels = []string{
-	AccessLevelPublic,
-	AccessLevelPrivate,
-	AccessLevelGroup,
-}
 
 // ServiceURL formats a service URL from a port number and service type
 func ServiceURL(port, serviceType string) string {

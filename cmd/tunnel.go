@@ -13,12 +13,10 @@ var (
 	tunnelSvc    *tunnel.Service
 	exposeType   string
 	exposeAccess string
-	exposeEmails string
 	updateType   string
 	logsFollow   bool
 	logsLines    int
 	serviceDesc  = fmt.Sprintf("Service type: %s", strings.Join(tunnel.ValidServiceTypes, ", "))
-	accessDesc   = fmt.Sprintf("Access level: %s", strings.Join(tunnel.ValidAccessLevels, ", "))
 )
 
 var tunnelCmd = &cobra.Command{
@@ -49,8 +47,7 @@ func init() {
 	tunnelCmd.AddCommand(logsCmd)
 
 	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
-	exposeCmd.Flags().StringVarP(&exposeAccess, "access", "a", tunnel.DefaultAccessLevel, accessDesc)
-	exposeCmd.Flags().StringVar(&exposeEmails, "emails", "", "Comma-separated emails for group access (only with --access=group)")
+	exposeCmd.Flags().StringVarP(&exposeAccess, "access", "a", tunnel.DefaultAccessLevel, "Access level: public, private, or group name")
 	updateCmd.Flags().StringVarP(&updateType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 	logsCmd.Flags().BoolVarP(&logsFollow, "follow", "f", false, "Follow logs in real-time")
 	logsCmd.Flags().IntVarP(&logsLines, "lines", "n", 50, "Number of lines to show")
@@ -62,10 +59,11 @@ var exposeCmd = &cobra.Command{
 	Example: `  orb tunnel expose api 8080
   orb tunnel expose api 8080 --type tcp
   orb tunnel expose api 8080 --access private
-  orb tunnel expose api 8080 --access group --emails user@example.com,friend@example.com`,
+  orb tunnel expose api 8080 --access friends
+  orb tunnel expose api 8080 --access hackathon2025`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return tunnelSvc.Expose(args[0], args[1], exposeType, exposeAccess, exposeEmails)
+		return tunnelSvc.Expose(args[0], args[1], exposeType, exposeAccess)
 	},
 }
 

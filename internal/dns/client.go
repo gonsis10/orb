@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/cloudflare/cloudflare-go"
 )
@@ -150,7 +151,8 @@ func (c *Client) FollowServiceLogs(tunnelName string, hostname string) error {
 }
 
 // CreateAccessPolicy creates a Cloudflare Access policy for a hostname
-func (c *Client) CreateAccessPolicy(hostname, accessLevel, userEmail string, groupEmails []string) error {
+// accessLevel can be "public", "private", or a group name
+func (c *Client) CreateAccessPolicy(hostname, accessLevel, userEmail string) error {
 	ctx := context.Background()
 
 	// If access level is public, don't create a policy
@@ -160,19 +162,37 @@ func (c *Client) CreateAccessPolicy(hostname, accessLevel, userEmail string, gro
 
 	// Build include rules based on access level
 	var include []any
-	switch accessLevel {
-	case "private":
+	if accessLevel == "private" {
+		// Private: only the user's email
 		include = []any{
 			cloudflare.AccessGroupEmail{Email: struct {
 				Email string `json:"email"`
 			}{Email: userEmail}},
 		}
-	case "group":
-		// Add each email as a separate rule (OR logic)
-		for _, email := range groupEmails {
-			include = append(include, cloudflare.AccessGroupEmail{Email: struct {
-				Email string `json:"email"`
-			}{Email: email}})
+	} else {
+		// Assume it's a group name - look up the group by name
+		groups, _, err := c.api.ListAccessGroups(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessGroupsParams{})
+		if err != nil {
+			return fmt.Errorf("failed to list access groups: %w", err)
+		}
+
+		var groupID string
+		for _, group := range groups {
+			if group.Name == accessLevel {
+				groupID = group.ID
+				break
+			}
+		}
+
+		if groupID == "" {
+			return fmt.Errorf("access group %q not found - create it in Cloudflare Zero Trust dashboard first", accessLevel)
+		}
+
+		// Reference the existing group
+		include = []any{
+			cloudflare.AccessGroupAccessGroup{Group: struct {
+				ID string `json:"id"`
+			}{ID: groupID}},
 		}
 	}
 
@@ -225,5 +245,90 @@ func (c *Client) RemoveAccessPolicy(hostname string) error {
 	}
 
 	// Not found is not an error
+	return nil
+}
+
+// CreateAccessGroup creates a new Access group with email addresses
+func (c *Client) CreateAccessGroup(groupName, emails string) error {
+	ctx := context.Background()
+
+	// Parse comma-separated emails
+	emailList := []string{}
+	for _, email := range strings.Split(emails, ",") {
+		emailList = append(emailList, strings.TrimSpace(email))
+	}
+
+	// Build include rules with email addresses
+	var include []any
+	for _, email := range emailList {
+		include = append(include, cloudflare.AccessGroupEmail{Email: struct {
+			Email string `json:"email"`
+		}{Email: email}})
+	}
+
+	// Create the access group
+	_, err := c.api.CreateAccessGroup(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.CreateAccessGroupParams{
+		Name:    groupName,
+		Include: include,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create access group: %w", err)
+	}
+
+	fmt.Printf("✔ Created Access group %q with %d email(s)\n", groupName, len(emailList))
+	return nil
+}
+
+// ListAccessGroupsFormatted lists all Access groups in a formatted table
+func (c *Client) ListAccessGroupsFormatted() error {
+	ctx := context.Background()
+
+	groups, _, err := c.api.ListAccessGroups(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessGroupsParams{})
+	if err != nil {
+		return fmt.Errorf("failed to list access groups: %w", err)
+	}
+
+	if len(groups) == 0 {
+		fmt.Println("No Access groups found")
+		return nil
+	}
+
+	fmt.Printf("\nAccess Groups (%d):\n", len(groups))
+	for _, group := range groups {
+		fmt.Printf("  • %s (ID: %s)\n", group.Name, group.ID)
+	}
+
+	return nil
+}
+
+// DeleteAccessGroup deletes an Access group by name
+func (c *Client) DeleteAccessGroup(groupName string) error {
+	ctx := context.Background()
+
+	// Find the group by name
+	groups, _, err := c.api.ListAccessGroups(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessGroupsParams{})
+	if err != nil {
+		return fmt.Errorf("failed to list access groups: %w", err)
+	}
+
+	var groupID string
+	for _, group := range groups {
+		if group.Name == groupName {
+			groupID = group.ID
+			break
+		}
+	}
+
+	if groupID == "" {
+		return fmt.Errorf("access group %q not found", groupName)
+	}
+
+	// Delete the group
+	err = c.api.DeleteAccessGroup(ctx, cloudflare.AccountIdentifier(c.accountID), groupID)
+	if err != nil {
+		return fmt.Errorf("failed to delete access group: %w", err)
+	}
+
+	fmt.Printf("✔ Deleted Access group %q\n", groupName)
 	return nil
 }
