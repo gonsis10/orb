@@ -239,6 +239,59 @@ func (c *Client) CreateAccessPolicy(hostname, accessLevel, userEmail string) err
 	return nil
 }
 
+// GetAccessInfo returns the access level for a hostname (e.g., "public", "private", or group name)
+func (c *Client) GetAccessInfo(hostname string) string {
+	ctx := context.Background()
+
+	// List all access applications
+	apps, _, err := c.api.ListAccessApplications(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessApplicationsParams{})
+	if err != nil {
+		return "public"
+	}
+
+	// Find the application for this hostname
+	appName := fmt.Sprintf("orb-%s", hostname)
+	for _, app := range apps {
+		if app.Name == appName {
+			// Get the policies for this application
+			policies, _, err := c.api.ListAccessPolicies(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessPoliciesParams{
+				ApplicationID: app.ID,
+			})
+			if err != nil || len(policies) == 0 {
+				return "protected"
+			}
+
+			// Check the first policy's include rules to determine type
+			policy := policies[0]
+			if len(policy.Include) > 0 {
+				// Try to extract group information
+				for _, include := range policy.Include {
+					// Check if it's an email-based rule (private)
+					if emailRule, ok := include.(cloudflare.AccessGroupEmail); ok && emailRule.Email.Email != "" {
+						return "private"
+					}
+					// Check if it's a group-based rule
+					if groupRule, ok := include.(cloudflare.AccessGroupAccessGroup); ok && groupRule.Group.ID != "" {
+						// Look up the group name by ID
+						groups, _, err := c.api.ListAccessGroups(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessGroupsParams{})
+						if err == nil {
+							for _, group := range groups {
+								if group.ID == groupRule.Group.ID {
+									return group.Name
+								}
+							}
+						}
+						return "group"
+					}
+				}
+			}
+			return "protected"
+		}
+	}
+
+	return "public"
+}
+
 // RemoveAccessPolicy removes the Cloudflare Access policy for a hostname
 func (c *Client) RemoveAccessPolicy(hostname string) error {
 	ctx := context.Background()

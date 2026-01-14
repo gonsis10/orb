@@ -486,7 +486,7 @@ func (s *Service) List() error {
 
 	// create table
 	table := tablewriter.NewWriter(os.Stdout)
-	table.Header("URL", "Target", "Status")
+	table.Header("URL", "Target", "Access", "Status")
 
 	fmt.Println("\nChecking health of exposed services...")
 
@@ -496,9 +496,11 @@ func (s *Service) List() error {
 			continue
 		}
 		status := s.checkHealth(rule.Hostname)
+		access := s.cloudflare.GetAccessInfo(rule.Hostname)
 		if err := table.Append(
 			fmt.Sprintf("https://%s", rule.Hostname),
 			rule.Service,
+			access,
 			status,
 		); err != nil {
 			return fmt.Errorf("failed to add table row: %w", err)
