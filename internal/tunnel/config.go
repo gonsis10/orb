@@ -115,8 +115,8 @@ func (m *ConfigManager) Backup(config *Config) *Config {
 }
 
 // ModifySubdomainPort updates the port and service type for a given subdomain in the config
-func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port, serviceType string) error {
-	hostname := HostnameFor(subdomain)
+func (m *ConfigManager) ModifySubdomainPort(config *Config, subdomain, port, serviceType, domain string) error {
+	hostname := HostnameFor(subdomain, domain)
 	service := ServiceURL(port, serviceType)
 
 	idx := m.FindIngressIndex(config, hostname)
@@ -153,8 +153,8 @@ func (m *ConfigManager) FindIngressIndex(config *Config, hostname string) int {
 }
 
 // HostnameFor formats a full hostname from a subdomain
-func HostnameFor(subdomain string) string {
-	return fmt.Sprintf("%s.%s", subdomain, Domain)
+func HostnameFor(subdomain, domain string) string {
+	return fmt.Sprintf("%s.%s", subdomain, domain)
 }
 
 // Service type constants

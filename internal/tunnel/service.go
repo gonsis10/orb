@@ -57,7 +57,7 @@ func (s *Service) Expose(subdomain, port, serviceType, accessLevel string) error
 	}
 
 	// get hostname and service
-	host := HostnameFor(subdomain)
+	host := HostnameFor(subdomain, s.env.Domain)
 	svc := ServiceURL(port, serviceType)
 
 	// get cloudflare config yaml
@@ -161,7 +161,7 @@ func (s *Service) Unexpose(subdomain string) error {
 	}
 
 	// get hostname for subdomain
-	host := HostnameFor(subdomain)
+	host := HostnameFor(subdomain, s.env.Domain)
 
 	// load cloudflare config
 	cfg, err := s.config.Load()
@@ -273,7 +273,7 @@ func (s *Service) Update(subdomain, port, serviceType string) error {
 	}()
 
 	// modify subdomain port in config
-	if err := s.config.ModifySubdomainPort(cfg, subdomain, port, serviceType); err != nil {
+	if err := s.config.ModifySubdomainPort(cfg, subdomain, port, serviceType, s.env.Domain); err != nil {
 		return err
 	}
 
@@ -284,14 +284,14 @@ func (s *Service) Update(subdomain, port, serviceType string) error {
 	configSaved = true
 
 	// restart cloudflared service
-	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, HostnameFor(subdomain)); err != nil {
+	if err := s.cloudflare.RestartCloudflaredService(cfg.Tunnel, HostnameFor(subdomain, s.env.Domain)); err != nil {
 		return fmt.Errorf("failed to restart cloudflared service: %w", err)
 	}
 
 	// reset rollback
 	configSaved = false
 
-	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain), ServiceURL(port, serviceType))
+	fmt.Printf("✔ Updated %s to point to %s\n", HostnameFor(subdomain, s.env.Domain), ServiceURL(port, serviceType))
 	return nil
 }
 
