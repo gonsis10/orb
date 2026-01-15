@@ -3,6 +3,9 @@ package tunnel
 import (
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var (
@@ -10,6 +13,8 @@ var (
 	subdomainRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 	// portRe validates port number format
 	portRe = regexp.MustCompile(`^\d{1,5}$`)
+	// expiresRe validates expires duration format (e.g., 1h, 24h, 7d, 30m)
+	expiresRe = regexp.MustCompile(`^(\d+)(m|h|d)$`)
 )
 
 // ValidateSubdomain checks if a subdomain string is valid
@@ -46,6 +51,41 @@ func ValidateAccessLevel(level string) error {
 	}
 	// Any non-empty string is valid (public, private, or group name)
 	return nil
+}
+
+// ValidateExpiresDuration checks if an expires duration string is valid
+func ValidateExpiresDuration(expires string) error {
+	expires = strings.TrimSpace(expires)
+	if !expiresRe.MatchString(expires) {
+		return fmt.Errorf("invalid expires format %q: use format like 30m, 1h, 24h, or 7d", expires)
+	}
+	return nil
+}
+
+// ParseExpiresDuration parses an expires string into a time.Duration
+func ParseExpiresDuration(expires string) (time.Duration, error) {
+	expires = strings.TrimSpace(expires)
+	matches := expiresRe.FindStringSubmatch(expires)
+	if matches == nil {
+		return 0, fmt.Errorf("invalid expires format: %s", expires)
+	}
+
+	value, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0, err
+	}
+
+	unit := matches[2]
+	switch unit {
+	case "m":
+		return time.Duration(value) * time.Minute, nil
+	case "h":
+		return time.Duration(value) * time.Hour, nil
+	case "d":
+		return time.Duration(value) * 24 * time.Hour, nil
+	default:
+		return 0, fmt.Errorf("unknown time unit: %s", unit)
+	}
 }
 
 // CURRENTLY DISABLED FOR BETTER DESIGN PRACTICES

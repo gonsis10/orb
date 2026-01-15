@@ -10,13 +10,14 @@ import (
 )
 
 var (
-	tunnelSvc    *tunnel.Service
-	exposeType   string
-	exposeAccess string
-	updateType   string
-	logsFollow   bool
-	logsLines    int
-	serviceDesc  = fmt.Sprintf("Service type: %s", strings.Join(tunnel.ValidServiceTypes, ", "))
+	tunnelSvc     *tunnel.Service
+	exposeType    string
+	exposeAccess  string
+	exposeExpires string
+	updateType    string
+	logsFollow    bool
+	logsLines     int
+	serviceDesc   = fmt.Sprintf("Service type: %s", strings.Join(tunnel.ValidServiceTypes, ", "))
 )
 
 var tunnelCmd = &cobra.Command{
@@ -45,9 +46,11 @@ func init() {
 	tunnelCmd.AddCommand(restartCmd)
 	tunnelCmd.AddCommand(statusCmd)
 	tunnelCmd.AddCommand(logsCmd)
+	tunnelCmd.AddCommand(revokeAccessCmd)
 
 	exposeCmd.Flags().StringVarP(&exposeType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 	exposeCmd.Flags().StringVarP(&exposeAccess, "access", "a", tunnel.DefaultAccessLevel, "Access level: public, private, or group name")
+	exposeCmd.Flags().StringVarP(&exposeExpires, "expires", "e", "", "Temporary access duration (e.g., 1h, 24h, 7d) - reverts to private after")
 	updateCmd.Flags().StringVarP(&updateType, "type", "t", tunnel.DefaultServiceType, serviceDesc)
 	logsCmd.Flags().BoolVarP(&logsFollow, "follow", "f", false, "Follow logs in real-time")
 	logsCmd.Flags().IntVarP(&logsLines, "lines", "n", 50, "Number of lines to show")
@@ -60,10 +63,10 @@ var exposeCmd = &cobra.Command{
   orb tunnel expose api 8080 --type tcp
   orb tunnel expose api 8080 --access private
   orb tunnel expose api 8080 --access friends
-  orb tunnel expose api 8080 --access hackathon2025`,
+  orb tunnel expose api 8080 --access friends --expires 24h`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return tunnelSvc.Expose(args[0], args[1], exposeType, exposeAccess)
+		return tunnelSvc.Expose(args[0], args[1], exposeType, exposeAccess, exposeExpires)
 	},
 }
 
@@ -146,5 +149,16 @@ Examples:
 			subdomain = args[0]
 		}
 		return tunnelSvc.Logs(subdomain, logsLines, logsFollow)
+	},
+}
+
+var revokeAccessCmd = &cobra.Command{
+	Use:                   "revoke-access <subdomain>",
+	Short:                 "Revoke group access, reverting to private (owner-only)",
+	Example:               "  orb tunnel revoke-access api",
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return tunnelSvc.RevokeAccess(args[0])
 	},
 }

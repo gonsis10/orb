@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"orb/internal/dns"
@@ -41,7 +42,7 @@ func NewService() (*Service, error) {
 }
 
 // Expose makes a local port accessible through a Cloudflare Tunnel subdomain
-func (s *Service) Expose(subdomain, port, serviceType, accessLevel string) error {
+func (s *Service) Expose(subdomain, port, serviceType, accessLevel, expires string) error {
 	// validation of arguments and if server is running
 	if err := ValidateSubdomain(subdomain); err != nil {
 		return err
@@ -54,6 +55,15 @@ func (s *Service) Expose(subdomain, port, serviceType, accessLevel string) error
 	}
 	if err := ValidateAccessLevel(accessLevel); err != nil {
 		return err
+	}
+	if expires != "" {
+		if err := ValidateExpiresDuration(expires); err != nil {
+			return err
+		}
+		// --expires only makes sense with group access
+		if accessLevel == AccessLevelPublic || accessLevel == AccessLevelPrivate {
+			return fmt.Errorf("--expires can only be used with group access (e.g., --access friends --expires 24h)")
+		}
 	}
 
 	// get hostname and service
@@ -153,6 +163,17 @@ func (s *Service) Expose(subdomain, port, serviceType, accessLevel string) error
 	// reset rollback
 	configSaved = false
 	dnsAdded = false
+
+	// schedule access expiry if specified
+	if expires != "" && accessLevel != AccessLevelPublic && accessLevel != AccessLevelPrivate {
+		duration, _ := ParseExpiresDuration(expires) // already validated
+		expiryTime := time.Now().Add(duration)
+		if err := s.scheduleAccessExpiry(subdomain, duration); err != nil {
+			fmt.Printf("⚠ Warning: failed to schedule access expiry: %v\n", err)
+		} else {
+			fmt.Printf("  Access reverts to private: %s (in %s)\n", expiryTime.Format("2006-01-02 15:04:05"), expires)
+		}
+	}
 
 	fmt.Printf("✔ Exposed %s → %s", host, svc)
 	if accessLevel != AccessLevelPublic {
@@ -529,4 +550,43 @@ func (s *Service) ListAccessGroups() error {
 // DeleteAccessGroup deletes a Cloudflare Access group by name
 func (s *Service) DeleteAccessGroup(groupName string) error {
 	return s.cloudflare.DeleteAccessGroup(groupName)
+}
+
+// RevokeAccess removes group access from a subdomain, reverting to private (owner-only)
+func (s *Service) RevokeAccess(subdomain string) error {
+	if err := ValidateSubdomain(subdomain); err != nil {
+		return err
+	}
+
+	host := HostnameFor(subdomain, s.env.Domain)
+
+	fmt.Printf("Revoking group access for %s...\n", host)
+	if err := s.cloudflare.RevokeGroupAccess(host); err != nil {
+		return fmt.Errorf("failed to revoke group access: %w", err)
+	}
+
+	fmt.Printf("✔ Access reverted to private for %s\n", host)
+	return nil
+}
+
+// scheduleAccessExpiry schedules a systemd timer to revoke group access after the specified duration
+func (s *Service) scheduleAccessExpiry(subdomain string, duration time.Duration) error {
+	// Use systemd-run to schedule the revoke command
+	// Format: systemd-run --on-active=<duration> orb tunnel revoke-access <subdomain>
+	durationStr := fmt.Sprintf("%ds", int(duration.Seconds()))
+
+	cmd := exec.Command("systemd-run",
+		"--user",
+		"--on-active="+durationStr,
+		"--unit=orb-expire-"+subdomain,
+		"--description=Revoke group access for "+subdomain,
+		"/usr/local/bin/orb", "tunnel", "revoke-access", subdomain,
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to schedule expiry timer: %w\nOutput: %s", err, string(output))
+	}
+
+	return nil
 }
