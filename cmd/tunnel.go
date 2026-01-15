@@ -22,14 +22,15 @@ var (
 
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
-	Short: "Manage Cloudflare Tunnel ingress rules",
-	Long: `Expose local services through Cloudflare Tunnel.
+	Short: "Expose and manage local services through Cloudflare Tunnel",
+	Long: `Expose local services through Cloudflare Tunnel with Zero Trust access control.
 
 Examples:
-  orb tunnel expose api 8080    # Expose localhost:8080 at api.simoonsong.com
-  orb tunnel unexpose api       # Remove the api subdomain
-  orb tunnel update api 9090    # Update api subdomain to point to localhost:9090
-  orb tunnel list               # Show all exposed services`,
+  orb tunnel expose api 8080                  # Expose at api.` + tunnel.Domain + `
+  orb tunnel expose api 8080 --access friends # Restrict to a group
+  orb tunnel unexpose api                     # Remove the subdomain
+  orb tunnel list                             # Show all services with health
+  orb tunnel revoke-access api                # Revoke group access`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		tunnelSvc, err = tunnel.NewService()
@@ -59,11 +60,11 @@ func init() {
 var exposeCmd = &cobra.Command{
 	Use:   "expose <subdomain> <port>",
 	Short: "Expose a local port at subdomain." + tunnel.Domain,
-	Example: `  orb tunnel expose api 8080
-  orb tunnel expose api 8080 --type tcp
-  orb tunnel expose api 8080 --access private
-  orb tunnel expose api 8080 --access friends
-  orb tunnel expose api 8080 --access friends --expires 24h`,
+	Example: `  orb tunnel expose api 8080                            # Public access
+  orb tunnel expose api 8080 --access private           # Only you can access
+  orb tunnel expose api 8080 --access friends           # Group access (permanent)
+  orb tunnel expose api 8080 --access friends -e 24h    # Group access for 24 hours
+  orb tunnel expose db 5432 --type tcp                  # TCP service (non-HTTP)`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelSvc.Expose(args[0], args[1], exposeType, exposeAccess, exposeExpires)

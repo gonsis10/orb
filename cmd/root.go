@@ -8,13 +8,12 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "orb",
-	Short: "CLI for managing Cloudflare Tunnel and deployments",
-	Long: `orb is a CLI for managing infrastructure services.
+	Short: "CLI for managing Cloudflare Tunnels with Zero Trust access control",
+	Long: `orb exposes local services through Cloudflare Tunnel with Zero Trust access control.
 
-Commands are grouped by function:
-  tunnel    Manage Cloudflare Tunnel ingress rules
-  access    Manage Cloudflare Access groups
-  deploy    Deploy dockerized services (coming soon)`,
+Commands:
+  tunnel    Expose, manage, and monitor tunnel services
+  access    Create and manage access groups for Zero Trust`,
 }
 
 func Execute() {
@@ -26,4 +25,5 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(tunnelCmd)
 	rootCmd.AddCommand(accessCmd)
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
