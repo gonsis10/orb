@@ -23,10 +23,7 @@ var (
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
 	Short: "Expose and manage local services through Cloudflare Tunnel",
-	Long: `Expose local services through Cloudflare Tunnel with Zero Trust access control.
-
-Examples:
-  orb tunnel expose api 8080                  # Expose at api.` + tunnel.Domain + `
+	Example: `  orb tunnel expose api 8080                  # Expose at api.` + tunnel.Domain + `
   orb tunnel expose api 8080 --access friends # Restrict to a group
   orb tunnel unexpose api                     # Remove the subdomain
   orb tunnel list                             # Show all services with health

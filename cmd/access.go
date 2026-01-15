@@ -15,10 +15,7 @@ var (
 var accessCmd = &cobra.Command{
 	Use:   "access",
 	Short: "Manage Cloudflare Access groups",
-	Long: `Manage Cloudflare Zero Trust Access groups for authentication.
-
-Examples:
-  orb access create friends user1@example.com,user2@example.com
+	Example: `  orb access create friends user1@example.com,user2@example.com
   orb access list
   orb access delete friends`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

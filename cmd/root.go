@@ -9,11 +9,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "orb",
 	Short: "CLI for managing Cloudflare Tunnels with Zero Trust access control",
-	Long: `orb exposes local services through Cloudflare Tunnel with Zero Trust access control.
-
-Commands:
-  tunnel    Expose, manage, and monitor tunnel services
-  access    Create and manage access groups for Zero Trust`,
+	Long:  `orb exposes local services through Cloudflare Tunnel with Zero Trust access control.`,
 }
 
 func Execute() {
