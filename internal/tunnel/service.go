@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"orb/internal/dns"
@@ -491,6 +492,14 @@ func (s *Service) checkHealth(hostname string) string {
 	return fmt.Sprintf("⚠ %d", resp.StatusCode)
 }
 
+// serviceInfo holds the result of parallel health/access checks
+type serviceInfo struct {
+	hostname string
+	service  string
+	access   string
+	status   string
+}
+
 // List displays all exposed subdomains and their port mappings
 func (s *Service) List() error {
 	// load cloudflare config
@@ -505,24 +514,49 @@ func (s *Service) List() error {
 		return nil
 	}
 
-	// create table
-	table := tablewriter.NewWriter(os.Stdout)
-	table.Header("URL", "Target", "Access", "Status")
+	// Filter out catch-all rule and count services
+	var rules []IngressRule
+	for _, rule := range cfg.Ingress {
+		if rule.Hostname != "" {
+			rules = append(rules, rule)
+		}
+	}
 
 	fmt.Println("\nChecking health of exposed services...")
 
-	// add rows to table
-	for _, rule := range cfg.Ingress {
-		if rule.Hostname == "" {
-			continue
-		}
-		status := s.checkHealth(rule.Hostname)
-		access := s.cloudflare.GetAccessInfo(rule.Hostname)
+	// Use goroutines to check health and access in parallel
+	var wg sync.WaitGroup
+	results := make(chan serviceInfo, len(rules))
+
+	for _, rule := range rules {
+		wg.Add(1)
+		go func(r IngressRule) {
+			defer wg.Done()
+			results <- serviceInfo{
+				hostname: r.Hostname,
+				service:  r.Service,
+				access:   s.cloudflare.GetAccessInfo(r.Hostname),
+				status:   s.checkHealth(r.Hostname),
+			}
+		}(rule)
+	}
+
+	// Close channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results and build table
+	table := tablewriter.NewWriter(os.Stdout)
+	table.Header("URL", "Target", "Access", "Status")
+
+	for info := range results {
 		if err := table.Append(
-			fmt.Sprintf("https://%s", rule.Hostname),
-			rule.Service,
-			access,
-			status,
+			fmt.Sprintf("https://%s", info.hostname),
+			info.service,
+			info.access,
+			info.status,
 		); err != nil {
 			return fmt.Errorf("failed to add table row: %w", err)
 		}
