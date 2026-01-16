@@ -7,8 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 // Schedule represents a scheduled task
@@ -178,17 +179,24 @@ func (s *Service) List() error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tCRON\tCOMMAND\tCREATED")
+	table := tablewriter.NewWriter(os.Stdout)
+	table.Header("Name", "Cron", "Command", "Created")
+
 	for _, sched := range s.schedules {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		if err := table.Append(
 			sched.Name,
 			sched.Cron,
 			truncate(sched.Command, 40),
 			sched.CreatedAt.Format("2006-01-02"),
-		)
+		); err != nil {
+			return fmt.Errorf("failed to add table row: %w", err)
+		}
 	}
-	w.Flush()
+
+	fmt.Println("\nScheduled tasks:")
+	if err := table.Render(); err != nil {
+		return fmt.Errorf("failed to render table: %w", err)
+	}
 
 	return nil
 }
