@@ -1,20 +1,22 @@
 # orb
 
-A CLI tool for managing Cloudflare Tunnel ingress rules. Easily expose and manage local services through Cloudflare Tunnel with simple commands.
+A CLI tool for managing Cloudflare Tunnels with Zero Trust access control and scheduled tasks.
 
 ## Features
 
 - **Expose local services** through Cloudflare Tunnel with custom subdomains
-- **Manage DNS routes** automatically via Cloudflare API
-- **Update port mappings** for existing subdomains
-- **List all exposed services** at a glance
-- **Port validation** ensures services are running before exposure
+- **Zero Trust access control** - public, private (owner-only), or group-based access
+- **Temporary access** - grant time-limited group access that auto-reverts to private
+- **Access groups** - manage who can access your services via Cloudflare Access
+- **Scheduled tasks** - run scripts on a cron schedule with `orb schedule`
+- **Health monitoring** - check service status and view logs
+- **Automatic DNS management** - creates/removes DNS records automatically
 
 ## Prerequisites
 
-- Go 1.25.5 or later
+- Go 1.21 or later
 - [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) (`cloudflared`) installed and configured
-- Cloudflare API token with DNS edit permissions
+- Cloudflare API token with DNS and Access permissions
 - A configured `cloudflared` config file
 
 ## Installation
@@ -44,6 +46,8 @@ DOMAIN=yourdomain.com
 CONFIG_PATH=/path/to/cloudflared/config.yml
 CLOUDFLARE_API_TOKEN=your_api_token
 CLOUDFLARE_ZONE_ID=your_zone_id
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+OWNER_EMAIL=your_email@example.com
 ```
 
 **Verify installation:**
@@ -85,43 +89,49 @@ rm -rf ~/.config/orb
 
 ### Getting Your Cloudflare Credentials
 
-1. **API Token**: Create one at [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens) with DNS edit permissions
+1. **API Token**: Create one at [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens) with:
+   - DNS edit permissions
+   - Access: Apps and Policies edit permissions
 2. **Zone ID**: Found in your domain's Overview tab in the Cloudflare Dashboard
+3. **Account ID**: Found in the URL when logged into Cloudflare (`dash.cloudflare.com/<account_id>/...`)
 
 ## Usage
 
-### Expose a Local Service
+### Tunnel Commands
 
-Expose a local port through a subdomain:
+#### Expose a Local Service
 
 ```bash
+# Public access (anyone can access)
 orb tunnel expose api 8080
+
+# Private access (only you, via OWNER_EMAIL)
+orb tunnel expose api 8080 --access private
+
+# Group access (permanent)
+orb tunnel expose api 8080 --access friends
+
+# Temporary group access (reverts to private after 24 hours)
+orb tunnel expose api 8080 --access friends --expires 24h
+
+# TCP service (non-HTTP)
+orb tunnel expose db 5432 --type tcp
 ```
 
-This creates:
-- DNS CNAME record: `api.yourdomain.com` → Cloudflare Tunnel
-- Ingress rule in cloudflared config
-- Restarts cloudflared service
-
-The service at `localhost:8080` is now accessible at `https://api.yourdomain.com`
-
-### Remove an Exposed Service
+#### Remove an Exposed Service
 
 ```bash
 orb tunnel unexpose api
 ```
 
-Removes the DNS record and ingress rule for the subdomain.
-
-### Update Port Mapping
+#### Revoke Group Access
 
 ```bash
-orb tunnel update api 9090
+# Manually revoke group access, revert to private (owner-only)
+orb tunnel revoke-access api
 ```
 
-Changes `api.yourdomain.com` to point to `localhost:9090` instead.
-
-### List All Exposed Services
+#### List All Exposed Services
 
 ```bash
 orb tunnel list
@@ -130,16 +140,75 @@ orb tunnel list
 Output:
 ```
 Exposed services:
-  https://api.yourdomain.com            → http://localhost:8080
-  https://dashboard.yourdomain.com      → http://localhost:3000
+┌─────────────────────────────┬─────────────────────────┬─────────┬─────────┐
+│            URL              │         TARGET          │ ACCESS  │ STATUS  │
+├─────────────────────────────┼─────────────────────────┼─────────┼─────────┤
+│ https://api.yourdomain.com  │ http://localhost:8080   │ public  │ healthy │
+│ https://db.yourdomain.com   │ tcp://localhost:5432    │ private │ healthy │
+└─────────────────────────────┴─────────────────────────┴─────────┴─────────┘
 ```
+
+#### Other Tunnel Commands
+
+```bash
+orb tunnel update api 9090        # Change port
+orb tunnel health api             # Check service health
+orb tunnel status                 # Show cloudflared status
+orb tunnel logs                   # View cloudflared logs
+orb tunnel logs api -f            # Follow logs for a subdomain
+orb tunnel restart                # Restart cloudflared
+```
+
+### Access Group Commands
+
+```bash
+# Create an access group
+orb access create friends "alice@example.com,bob@example.com"
+
+# List all access groups
+orb access list
+
+# Delete an access group
+orb access delete friends
+```
+
+### Schedule Commands
+
+Run scripts on a cron schedule:
+
+```bash
+# Add a scheduled task
+orb schedule add backup "0 2 * * *" "./scripts/backup.sh"      # Daily at 2am
+orb schedule add sync "*/30 * * * *" "python sync.py"          # Every 30 minutes
+orb schedule add weekly "0 9 * * 1" "/usr/local/bin/report"    # Mondays at 9am
+
+# List all scheduled tasks
+orb schedule list
+
+# Remove a scheduled task
+orb schedule remove backup
+```
+
+Cron format: `minute hour day month weekday`
+- `* * * * *` = every minute
+- `0 * * * *` = every hour
+- `0 0 * * *` = daily at midnight
+- `0 9 * * 1` = Mondays at 9am
 
 ## How It Works
 
+### Tunnel Expose
 1. **Validation**: Checks subdomain format and verifies the port is listening
 2. **Config Update**: Modifies your `cloudflared` YAML configuration
 3. **DNS Management**: Creates/updates DNS records via Cloudflare API
-4. **Service Restart**: Restarts `cloudflared` to apply changes
+4. **Access Policy**: Creates Cloudflare Access policy (owner always has access)
+5. **Service Restart**: Restarts `cloudflared` to apply changes
+6. **Expiry Scheduling**: If `--expires` is set, schedules automatic revocation via systemd timer
+
+### Schedule
+- Schedules are stored in `~/.config/orb/schedules.json`
+- Tasks are added to your user crontab with `# orb-schedule: <name>` markers
+- Logs depend on the command (use output redirection like `>> /tmp/log.txt`)
 
 ## Project Structure
 
@@ -148,14 +217,18 @@ Exposed services:
 orb/
 ├── cmd/                      # CLI commands (Cobra)
 │   ├── root.go              # Root command
-│   └── tunnel.go            # Tunnel subcommands
+│   ├── tunnel.go            # Tunnel subcommands
+│   ├── access.go            # Access group commands
+│   └── schedule.go          # Schedule commands
 ├── internal/
-│   ├── dns/                 # Cloudflare DNS client
-│   │   └── client.go
-│   └── tunnel/              # Tunnel management logic
-│       ├── config.go        # Config file management
-│       ├── service.go       # Business logic
-│       └── validation.go    # Input validation
+│   ├── dns/                 # Cloudflare API client
+│   │   └── client.go        # DNS, Access policies, groups
+│   ├── tunnel/              # Tunnel management logic
+│   │   ├── config.go        # Config file management
+│   │   ├── service.go       # Business logic
+│   │   └── validation.go    # Input validation
+│   └── scheduler/           # Cron schedule management
+│       └── service.go       # Add/remove/list schedules
 ├── main.go                  # Entry point
 └── go.mod
 ```
@@ -163,7 +236,8 @@ orb/
 **Runtime configuration:**
 ```
 ~/.config/orb/
-└── .env                     # Environment variables (API tokens, domain, etc.)
+├── .env                     # Environment variables (API tokens, domain, etc.)
+└── schedules.json           # Persisted scheduled tasks
 ```
 
 ## Development
@@ -218,6 +292,8 @@ export DOMAIN=yourdomain.com
 export CONFIG_PATH=/etc/cloudflared/config.yml
 export CLOUDFLARE_API_TOKEN=your_token
 export CLOUDFLARE_ZONE_ID=your_zone_id
+export CLOUDFLARE_ACCOUNT_ID=your_account_id
+export OWNER_EMAIL=your_email@example.com
 ```
 
 ## Contributing
