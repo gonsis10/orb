@@ -22,5 +22,6 @@ func init() {
 	rootCmd.AddCommand(tunnelCmd)
 	rootCmd.AddCommand(accessCmd)
 	rootCmd.AddCommand(scheduleCmd)
+	rootCmd.AddCommand(doctorCmd)
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
