@@ -1,15 +1,17 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"orb/internal/tunnel"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	accessSvc    *tunnel.Service
-	groupEmails  string
-	groupInclude string
+	accessSvc *tunnel.Service
 )
 
 var accessCmd = &cobra.Command{
@@ -26,9 +28,14 @@ var accessCmd = &cobra.Command{
 }
 
 func init() {
+	updateGroupCmd.Flags().StringP("add", "a", "", "Comma-separated emails to add")
+	updateGroupCmd.Flags().StringP("remove", "r", "", "Comma-separated emails to remove")
+
 	accessCmd.AddCommand(createGroupCmd)
 	accessCmd.AddCommand(listGroupsCmd)
 	accessCmd.AddCommand(deleteGroupCmd)
+	accessCmd.AddCommand(updateGroupCmd)
+	accessCmd.AddCommand(showGroupCmd)
 }
 
 var createGroupCmd = &cobra.Command{
@@ -60,5 +67,61 @@ var deleteGroupCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return accessSvc.DeleteAccessGroup(args[0])
+	},
+}
+
+var updateGroupCmd = &cobra.Command{
+	Use:   "update <group-name>",
+	Short: "Add or remove members from an Access group",
+	Example: `  orb access update friends --add user3@example.com
+  orb access update friends --remove user1@example.com
+  orb access update friends -a new@example.com -r old@example.com`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		addFlag, _ := cmd.Flags().GetString("add")
+		removeFlag, _ := cmd.Flags().GetString("remove")
+
+		if addFlag == "" && removeFlag == "" {
+			fmt.Fprintln(os.Stderr, "Error: must specify --add or --remove (or both)")
+			os.Exit(1)
+		}
+
+		var addEmails, removeEmails []string
+		if addFlag != "" {
+			for _, e := range strings.Split(addFlag, ",") {
+				if email := strings.TrimSpace(e); email != "" {
+					addEmails = append(addEmails, email)
+				}
+			}
+		}
+		if removeFlag != "" {
+			for _, e := range strings.Split(removeFlag, ",") {
+				if email := strings.TrimSpace(e); email != "" {
+					removeEmails = append(removeEmails, email)
+				}
+			}
+		}
+
+		return accessSvc.UpdateAccessGroupMembers(args[0], addEmails, removeEmails)
+	},
+}
+
+var showGroupCmd = &cobra.Command{
+	Use:                   "show <group-name>",
+	Short:                 "Show members of an Access group",
+	Example:               "  orb access show friends",
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		members, err := accessSvc.GetAccessGroupMembers(args[0])
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Members of %q (%d):\n", args[0], len(members))
+		for _, email := range members {
+			fmt.Printf("  • %s\n", email)
+		}
+		return nil
 	},
 }

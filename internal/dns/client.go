@@ -424,6 +424,117 @@ func (c *Client) ListAccessGroupsFormatted() error {
 	return nil
 }
 
+// UpdateAccessGroupMembers adds or removes members from an Access group
+func (c *Client) UpdateAccessGroupMembers(groupName string, addEmails, removeEmails []string) error {
+	ctx := context.Background()
+
+	// Find the group by name
+	groups, _, err := c.api.ListAccessGroups(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessGroupsParams{})
+	if err != nil {
+		return fmt.Errorf("failed to list access groups: %w", err)
+	}
+
+	var group cloudflare.AccessGroup
+	var found bool
+	for _, g := range groups {
+		if g.Name == groupName {
+			group = g
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("access group %q not found", groupName)
+	}
+
+	// Extract current emails from the group's include rules
+	currentEmails := make(map[string]bool)
+	for _, include := range group.Include {
+		if emailRule, ok := include.(map[string]interface{}); ok {
+			if emailObj, ok := emailRule["email"].(map[string]interface{}); ok {
+				if email, ok := emailObj["email"].(string); ok {
+					currentEmails[email] = true
+				}
+			}
+		}
+	}
+
+	// Add new emails
+	for _, email := range addEmails {
+		email = strings.TrimSpace(email)
+		if email != "" {
+			currentEmails[email] = true
+		}
+	}
+
+	// Remove emails
+	for _, email := range removeEmails {
+		email = strings.TrimSpace(email)
+		delete(currentEmails, email)
+	}
+
+	if len(currentEmails) == 0 {
+		return fmt.Errorf("cannot remove all members from group - delete the group instead")
+	}
+
+	// Build new include rules
+	var include []any
+	for email := range currentEmails {
+		include = append(include, cloudflare.AccessGroupEmail{Email: struct {
+			Email string `json:"email"`
+		}{Email: email}})
+	}
+
+	// Update the group
+	_, err = c.api.UpdateAccessGroup(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.UpdateAccessGroupParams{
+		ID:      group.ID,
+		Name:    groupName,
+		Include: include,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update access group: %w", err)
+	}
+
+	if len(addEmails) > 0 {
+		fmt.Printf("✔ Added %d member(s) to %q\n", len(addEmails), groupName)
+	}
+	if len(removeEmails) > 0 {
+		fmt.Printf("✔ Removed %d member(s) from %q\n", len(removeEmails), groupName)
+	}
+	fmt.Printf("  Group now has %d member(s)\n", len(currentEmails))
+
+	return nil
+}
+
+// GetAccessGroupMembers returns the list of email addresses in an Access group
+func (c *Client) GetAccessGroupMembers(groupName string) ([]string, error) {
+	ctx := context.Background()
+
+	groups, _, err := c.api.ListAccessGroups(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.ListAccessGroupsParams{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list access groups: %w", err)
+	}
+
+	for _, group := range groups {
+		if group.Name == groupName {
+			var emails []string
+			for _, include := range group.Include {
+				if emailRule, ok := include.(map[string]interface{}); ok {
+					if emailObj, ok := emailRule["email"].(map[string]interface{}); ok {
+						if email, ok := emailObj["email"].(string); ok {
+							emails = append(emails, email)
+						}
+					}
+				}
+			}
+			return emails, nil
+		}
+	}
+
+	return nil, fmt.Errorf("access group %q not found", groupName)
+}
+
 // DeleteAccessGroup deletes an Access group by name
 func (c *Client) DeleteAccessGroup(groupName string) error {
 	ctx := context.Background()

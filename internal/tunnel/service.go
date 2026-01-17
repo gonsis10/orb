@@ -586,6 +586,16 @@ func (s *Service) DeleteAccessGroup(groupName string) error {
 	return s.cloudflare.DeleteAccessGroup(groupName)
 }
 
+// UpdateAccessGroupMembers adds or removes members from an Access group
+func (s *Service) UpdateAccessGroupMembers(groupName string, addEmails, removeEmails []string) error {
+	return s.cloudflare.UpdateAccessGroupMembers(groupName, addEmails, removeEmails)
+}
+
+// GetAccessGroupMembers returns the list of members in an Access group
+func (s *Service) GetAccessGroupMembers(groupName string) ([]string, error) {
+	return s.cloudflare.GetAccessGroupMembers(groupName)
+}
+
 // RevokeAccess removes group access from a subdomain, reverting to private (owner-only)
 func (s *Service) RevokeAccess(subdomain string) error {
 	if err := ValidateSubdomain(subdomain); err != nil {
