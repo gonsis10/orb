@@ -24,5 +24,6 @@ func init() {
 	rootCmd.AddCommand(scheduleCmd)
 	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(dbCmd)
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
