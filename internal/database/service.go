@@ -352,6 +352,54 @@ func (s *Service) saveConfig(cfg DBConfig) error {
 	return os.WriteFile(configPath, data, 0600)
 }
 
+// Shell opens an interactive shell to the database
+func (s *Service) Shell(name string) error {
+	if err := s.checkDocker(); err != nil {
+		return err
+	}
+
+	cfg, err := s.GetConfig(name)
+	if err != nil {
+		return err
+	}
+
+	// Check if container is running
+	status := s.getContainerStatus(name)
+	if status != "running" {
+		return fmt.Errorf("database %q is not running (status: %s)", name, status)
+	}
+
+	containerName := fmt.Sprintf("orb-db-%s", name)
+
+	var cmd *exec.Cmd
+	switch cfg.Type {
+	case "postgres":
+		// Use psql inside the container
+		cmd = exec.Command("docker", "exec", "-it", containerName,
+			"psql", "-U", "postgres")
+	case "mysql":
+		// Use mysql inside the container
+		cmd = exec.Command("docker", "exec", "-it", containerName,
+			"mysql", "-u", "root", "-porb")
+	case "redis":
+		// Use redis-cli inside the container
+		cmd = exec.Command("docker", "exec", "-it", containerName,
+			"redis-cli")
+	case "mongodb":
+		// Use mongosh inside the container
+		cmd = exec.Command("docker", "exec", "-it", containerName,
+			"mongosh", "-u", "root", "-p", "orb", "--authenticationDatabase", "admin")
+	default:
+		return fmt.Errorf("shell not supported for database type: %s", cfg.Type)
+	}
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
 // getAllConfigs retrieves all database configurations
 func (s *Service) getAllConfigs() ([]DBConfig, error) {
 	entries, err := os.ReadDir(s.configDir)

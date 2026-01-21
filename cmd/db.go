@@ -276,6 +276,28 @@ var dbInfoCmd = &cobra.Command{
 	},
 }
 
+var dbShellCmd = &cobra.Command{
+	Use:   "shell <name>",
+	Short: "Open an interactive database shell",
+	Long: `Open an interactive shell to a running database.
+
+Opens the appropriate CLI tool for each database type:
+  postgres - psql
+  mysql    - mysql
+  redis    - redis-cli
+  mongodb  - mongosh`,
+	Example: `  orb db shell mydb`,
+	Args:    cobra.ExactArgs(1),
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		dbMgr, err = database.NewService()
+		return err
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return dbMgr.Shell(args[0])
+	},
+}
+
 func init() {
 	// Expose command flags
 	dbExposeCmd.Flags().StringP("port", "p", "", "Port to expose (defaults to standard port for db type)")
@@ -302,4 +324,5 @@ func init() {
 	dbCmd.AddCommand(dbDeleteCmd)
 	dbCmd.AddCommand(dbLogsCmd)
 	dbCmd.AddCommand(dbInfoCmd)
+	dbCmd.AddCommand(dbShellCmd)
 }
