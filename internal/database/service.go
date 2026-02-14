@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -99,9 +101,15 @@ func (s *Service) Create(dbType, name, port string) error {
 		return err
 	}
 
+	// Validate database type (whitelist only)
 	dbConfig, ok := SupportedDBs[dbType]
 	if !ok {
 		return fmt.Errorf("unsupported database type: %s", dbType)
+	}
+
+	// Validate database name to prevent injection
+	if err := validateDatabaseName(name); err != nil {
+		return err
 	}
 
 	// Check if database already exists
@@ -111,6 +119,11 @@ func (s *Service) Create(dbType, name, port string) error {
 
 	if port == "" {
 		port = dbConfig.DefaultPort
+	}
+
+	// Validate port is numeric and in valid range
+	if err := validatePort(port); err != nil {
+		return err
 	}
 
 	// Create data directory for this database
@@ -228,6 +241,10 @@ func (s *Service) Start(name string) error {
 		return err
 	}
 
+	if err := validateDatabaseName(name); err != nil {
+		return err
+	}
+
 	cfg, err := s.GetConfig(name)
 	if err != nil {
 		return err
@@ -249,6 +266,10 @@ func (s *Service) Stop(name string) error {
 		return err
 	}
 
+	if err := validateDatabaseName(name); err != nil {
+		return err
+	}
+
 	if _, err := s.GetConfig(name); err != nil {
 		return err
 	}
@@ -266,6 +287,10 @@ func (s *Service) Stop(name string) error {
 // Delete removes a database and its data
 func (s *Service) Delete(name string, keepData bool) error {
 	if err := s.checkDocker(); err != nil {
+		return err
+	}
+
+	if err := validateDatabaseName(name); err != nil {
 		return err
 	}
 
@@ -303,6 +328,10 @@ func (s *Service) Delete(name string, keepData bool) error {
 // Logs shows database logs
 func (s *Service) Logs(name string, follow bool, lines int) error {
 	if err := s.checkDocker(); err != nil {
+		return err
+	}
+
+	if err := validateDatabaseName(name); err != nil {
 		return err
 	}
 
@@ -355,6 +384,10 @@ func (s *Service) saveConfig(cfg DBConfig) error {
 // Shell opens an interactive shell to the database
 func (s *Service) Shell(name string) error {
 	if err := s.checkDocker(); err != nil {
+		return err
+	}
+
+	if err := validateDatabaseName(name); err != nil {
 		return err
 	}
 
@@ -419,4 +452,50 @@ func (s *Service) getAllConfigs() ([]DBConfig, error) {
 		}
 	}
 	return configs, nil
+}
+
+// validateDatabaseName ensures database name is safe for use in Docker and filesystem
+func validateDatabaseName(name string) error {
+	if name == "" {
+		return fmt.Errorf("database name cannot be empty")
+	}
+
+	// Only allow alphanumeric, hyphens, and underscores
+	matched, err := regexp.MatchString("^[a-zA-Z0-9_-]+$", name)
+	if err != nil {
+		return fmt.Errorf("failed to validate name: %w", err)
+	}
+	if !matched {
+		return fmt.Errorf("database name must contain only letters, numbers, hyphens, and underscores")
+	}
+
+	// Prevent path traversal
+	if strings.Contains(name, "..") || strings.Contains(name, "/") {
+		return fmt.Errorf("database name cannot contain path separators")
+	}
+
+	if len(name) > 64 {
+		return fmt.Errorf("database name too long (max 64 characters)")
+	}
+
+	return nil
+}
+
+// validatePort ensures port is a valid number in the valid range
+func validatePort(port string) error {
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return fmt.Errorf("port must be a number: %w", err)
+	}
+
+	if portNum < 1 || portNum > 65535 {
+		return fmt.Errorf("port must be between 1 and 65535")
+	}
+
+	// Warn about privileged ports
+	if portNum < 1024 {
+		fmt.Printf("Warning: port %d is a privileged port (< 1024)\n", portNum)
+	}
+
+	return nil
 }

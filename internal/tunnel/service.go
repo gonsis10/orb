@@ -615,10 +615,17 @@ func (s *Service) RevokeAccess(subdomain string) error {
 
 // scheduleAccessExpiry schedules a systemd timer to revoke group access after the specified duration
 func (s *Service) scheduleAccessExpiry(subdomain string, duration time.Duration) error {
+	// Subdomain is already validated by ValidateSubdomain() before this function is called
+	// But we double-check to ensure no injection is possible
+	if err := ValidateSubdomain(subdomain); err != nil {
+		return fmt.Errorf("invalid subdomain for scheduling: %w", err)
+	}
+
 	// Use systemd-run to schedule the revoke command
 	// Format: systemd-run --on-active=<duration> orb tunnel revoke-access <subdomain>
 	durationStr := fmt.Sprintf("%ds", int(duration.Seconds()))
 
+	// Pass arguments separately to prevent command injection
 	cmd := exec.Command("systemd-run",
 		"--user",
 		"--on-active="+durationStr,

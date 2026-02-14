@@ -78,7 +78,7 @@ func (s *Service) save() error {
 		return fmt.Errorf("failed to marshal schedules: %w", err)
 	}
 
-	if err := os.WriteFile(s.configPath, data, 0644); err != nil {
+	if err := os.WriteFile(s.configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write schedules: %w", err)
 	}
 
@@ -87,12 +87,12 @@ func (s *Service) save() error {
 
 // Add creates a new scheduled task
 func (s *Service) Add(name, cron, command string) error {
-	// Validate name
+	// Validate name and prevent injection attacks
 	if name == "" {
 		return fmt.Errorf("schedule name cannot be empty")
 	}
-	if strings.ContainsAny(name, " \t\n") {
-		return fmt.Errorf("schedule name cannot contain whitespace")
+	if strings.ContainsAny(name, " \t\n\r#;|&<>$`\\\"'") {
+		return fmt.Errorf("schedule name contains invalid characters")
 	}
 
 	// Check for duplicates
@@ -103,6 +103,11 @@ func (s *Service) Add(name, cron, command string) error {
 	// Validate cron expression (basic validation)
 	if err := validateCron(cron); err != nil {
 		return err
+	}
+
+	// Validate command doesn't contain malicious patterns
+	if strings.Contains(command, "\n") || strings.Contains(command, "\r") {
+		return fmt.Errorf("command cannot contain newline characters")
 	}
 
 	// Validate command exists (if it's a file path)
