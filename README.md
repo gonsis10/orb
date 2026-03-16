@@ -298,11 +298,7 @@ export OWNER_EMAIL=your_email@example.com
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT License - see LICENSE file for details
+Contributions are welcome :D Please feel free to submit a Pull Request.
 
 ## Acknowledgments
 
